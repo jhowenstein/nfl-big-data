@@ -130,29 +130,58 @@ class Play:
         
         return fig, ax
 
-    def plot_play(self, scale=1):
+    def plot_play(self, scale=1, markers=None):
         fig,ax = self.build_field(scale=scale)
 
         ax.axvline(self.line_of_scrimmage,color='y',alpha=.5,zorder=3)
         
         for player in self.players['offense'].values():
+            if markers == 'number':
+                marker = f'${player.number}$'
+                s = 150 * scale
+            elif markers == 'position':
+                marker = f'${player.position}$'
+                s = 150 * scale
+            else:
+                marker = 'o'
+                s = 50 * scale
+
             init_pos = player.tracking_data.loc[0]
-            ax.scatter(init_pos['x'],init_pos['y'],color='r',marker='x',zorder=3)
+            ax.scatter(init_pos['x'],init_pos['y'],color='r',marker=marker,zorder=3,s=s)
             
             x = player.tracking_data['x'].values
             y = player.tracking_data['y'].values
             ax.plot(x,y,color='r',alpha=.3,linestyle='--',zorder=3)
 
         for player in self.players['defense'].values():
+            if markers == 'number':
+                marker = f'${player.number}$'
+                s = 150 * scale
+            elif markers == 'position':
+                marker = f'${player.position}$'
+                s = 150 * scale
+            else:
+                marker = 'o'
+                s = 50 * scale
+
             init_pos = player.tracking_data.loc[0]
-            ax.scatter(init_pos['x'],init_pos['y'],color='b',marker='o',zorder=3)
+            ax.scatter(init_pos['x'],init_pos['y'],color='b',marker=marker,zorder=3,s=s)
             
             x = player.tracking_data['x'].values
             y = player.tracking_data['y'].values
             ax.plot(x,y,color='b',alpha=.3,linestyle='--',zorder=3)
 
-        ax.plot(self.fb_tracking['x'].values[self.events['pass_forward']:self.events['pass_arrived']],
-                self.fb_tracking['y'].values[self.events['pass_forward']:self.events['pass_arrived']],
+        try:
+            start = self.events['pass_forward']
+        except:
+            start = 0
+        try:
+            end = self.events['pass_arrived']
+        except:
+            end = -1
+
+        ax.plot(self.fb_tracking['x'].values[start:end],
+                self.fb_tracking['y'].values[start:end],
                 color='brown',alpha=.7,zorder=3)
 
         plt.show()
@@ -171,6 +200,11 @@ class Player:
     @property
     def position(self):
         return self.player_data['position']
+        #return self.tracking_data.loc[0,'position']
+
+    @property
+    def number(self):
+        return int(self.tracking_data.loc[0,'jerseyNumber'])
 
     @property
     def height(self):
