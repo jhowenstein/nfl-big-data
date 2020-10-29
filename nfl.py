@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import os
 import glob
 
+import moviepy.editor as mpy
+
 class Team:
     def __init__(self, abbr):
         self.abbr = abbr
@@ -27,6 +29,10 @@ class Game:
 
         self.plays = []
 
+    @property
+    def nPlays(self):
+        return len(self.plays)
+
     def __str__(self):
         week = self.game_info['week']
         home_team = self.game_info['homeTeamAbbr']
@@ -34,6 +40,10 @@ class Game:
         date = self.game_info['gameDate']
 
         return f'Week {week}: {away_team} at {home_team} ({date})'
+
+    def list_plays(self):
+        for i in range(len(self.plays)):
+            print(f'Play {i}: {self.plays[i]}')
 
 class Play:
     def __init__(self, playId, play_data, player_tracking, fb_tracking, defensive_team):
@@ -51,6 +61,10 @@ class Play:
 
     def __str__(self):
         return self.play_data['playDescription']
+
+    @property
+    def nFrames(self):
+        return self.fb_tracking.shape[0]
 
     @property
     def line_of_scrimmage(self):
@@ -94,9 +108,62 @@ class Play:
         self.players['offense'] = offensive_players
         self.players['defense'] = defensive_players
 
+    def find_dropback_events(self):
+        for key, value in self.players['offense'].items():
+            if value.position == 'QB':
+                qb_key = key
+
+        dt = .1
+
+        x = self.players['offense'][qb_key].tracking_data['x'].values
+        y = self.players['offense'][qb_key].tracking_data['y'].values
+
+        dx = np.zeros(len(x))
+        dy = np.zeros(len(y))
+
+        ddx = np.zeros(len(x))
+        ddy = np.zeros(len(y))
+
+        for i in range(1,len(x)-1):
+            dx[i] = (x[i+1] - x[i-1]) / (2 * dt)
+            dy[i] = (y[i+1] - y[i-1]) / (2 * dt)
+            
+        for i in range(2,len(x)-2):
+            ddx[i] = (dx[i+1] - dx[i-1]) / (2 * dt)
+            ddy[i] = (dy[i+1] - dy[i-1]) / (2 * dt)
+            
+        filt_dx = np.zeros(len(x))
+        filt_dy = np.zeros(len(y))
+
+        filt_ddx = np.zeros(len(x))
+        filt_ddy = np.zeros(len(y))
+            
+        order = 3
+
+        w = order // 2
+        for i in range(w,len(x)-2):
+            filt_dx[i] = sum(dx[i-w:i+w+1]) / order
+            filt_dy[i] = sum(dy[i-w:i+w+1]) / order
+            
+        for i in range(w,len(x)-2):
+            filt_ddx[i] = sum(ddx[i-w:i+w+1]) / order
+            filt_ddy[i] = sum(ddy[i-w:i+w+1]) / order
+
+        # Peak Dropback Event
+        start = self.events['ball_snap'] - 1
+        end = self.events['pass_forward']
+
+        peak_dropback = np.argmin(filt_dx[start:end]) + start
+
+        start = peak_dropback
+
+        end_dropback = np.argmax(filt_ddx[start:end]) + start
+
+        self.events['peak_dropback'] = peak_dropback + 1
+        self.events['end_dropback'] = end_dropback + 1
+
     def calc_player_start_position(self, event='ball_snap'):
         pass
-
 
     def build_field(self, scale=1):
         sideline_to_hash = 68.75    # In feet
@@ -130,21 +197,26 @@ class Play:
         
         return fig, ax
 
+    def set_player_marker(self, player, markers, scale):
+        if markers == 'number':
+            marker = f'${player.number}$'
+            s = 150 * scale
+        elif markers == 'position':
+            marker = f'${player.position}$'
+            s = 150 * scale
+        else:
+            marker = 'o'
+            s = 50 * scale
+
+        return marker, s
+
     def plot_play(self, scale=1, markers=None):
         fig,ax = self.build_field(scale=scale)
 
         ax.axvline(self.line_of_scrimmage,color='y',alpha=.5,zorder=3)
         
         for player in self.players['offense'].values():
-            if markers == 'number':
-                marker = f'${player.number}$'
-                s = 150 * scale
-            elif markers == 'position':
-                marker = f'${player.position}$'
-                s = 150 * scale
-            else:
-                marker = 'o'
-                s = 50 * scale
+            marker, s = self.set_player_marker(player, markers, scale)
 
             init_pos = player.tracking_data.loc[0]
             ax.scatter(init_pos['x'],init_pos['y'],color='r',marker=marker,zorder=3,s=s)
@@ -154,15 +226,7 @@ class Play:
             ax.plot(x,y,color='r',alpha=.3,linestyle='--',zorder=3)
 
         for player in self.players['defense'].values():
-            if markers == 'number':
-                marker = f'${player.number}$'
-                s = 150 * scale
-            elif markers == 'position':
-                marker = f'${player.position}$'
-                s = 150 * scale
-            else:
-                marker = 'o'
-                s = 50 * scale
+            marker, s = self.set_player_marker(player, markers, scale)
 
             init_pos = player.tracking_data.loc[0]
             ax.scatter(init_pos['x'],init_pos['y'],color='b',marker=marker,zorder=3,s=s)
@@ -172,7 +236,7 @@ class Play:
             ax.plot(x,y,color='b',alpha=.3,linestyle='--',zorder=3)
 
         try:
-            start = self.events['pass_forward']
+            start = self.events['pass_forward'] - 1
         except:
             start = 0
         try:
@@ -186,6 +250,71 @@ class Play:
 
         plt.show()
 
+    def create_gif(self,scale=1,markers=None,show=False,output=True,target_directory='play-viz',fps=10,name='play'):
+        image_folder = os.path.join(target_directory,'images')
+        self.plot_play_frames(scale=scale,markers=markers,show=show,output=output,target_directory=image_folder)
+        file_list = []
+        for i in range(self.nFrames):
+            file_list.append(os.path.join(image_folder,f'Play Frame - {i+1}.png'))
+        clip = mpy.ImageSequenceClip(file_list, fps=fps)
+        dst = os.path.join(target_directory,f'{name}.gif')
+        clip.write_gif(dst, fps=fps)
+
+    def create_video(self,scale=1,markers=None,show=False,output=True,target_directory='play-viz',fps=10,name='play'):
+        image_folder = os.path.join(target_directory,'images')
+        self.plot_play_frames(scale=scale,markers=markers,show=show,output=output,target_directory=image_folder)
+        file_list = []
+        for i in range(self.nFrames):
+            file_list.append(os.path.join(image_folder,f'Play Frame - {i+1}.png'))
+        clip = mpy.ImageSequenceClip(file_list, fps=fps)
+        dst = os.path.join(target_directory,f'{name}.mp4')
+        clip.write_videofile(dst,fps=fps)
+
+    def plot_play_frames(self, scale=1, markers=None, show=False, output=True, target_directory=''):
+        for i in range(self.nFrames):
+            self.plot_play_frame(index=i,scale=scale,markers=markers,show=show,output=output,target_directory=target_directory)
+
+    def plot_play_frame(self, index, scale=1, markers=None, show=True, output=False, target_directory=''):
+        if isinstance(index,str):
+            index = self.events[index] - 1
+
+        fig,ax = self.build_field(scale=scale)
+
+        ax.axvline(self.line_of_scrimmage,color='y',alpha=.5,zorder=3)
+
+        for player in self.players['offense'].values():
+            marker, s = self.set_player_marker(player, markers, scale)
+
+            pos = player.tracking_data.loc[index]
+            ax.scatter(pos['x'],pos['y'],color='r',marker=marker,zorder=3,s=s)
+            
+        for player in self.players['defense'].values():
+            marker, s = self.set_player_marker(player, markers, scale)
+
+            pos = player.tracking_data.loc[index]
+            ax.scatter(pos['x'],pos['y'],color='b',marker=marker,zorder=3,s=s)
+
+        ax.scatter(self.fb_tracking['x'].values[index],
+                   self.fb_tracking['y'].values[index],
+                   color='brown',zorder=3)
+
+        title = f'Play Frame - {index+1}'
+        ax.set_title(title,fontsize=18)
+
+        play_events = self.fb_tracking['event'].values
+        _event = play_events[index]
+        if play_events[index] != 'None':
+            ax.set_xlabel(f'Event: {_event.replace("_"," ").title()}',fontsize=16)
+
+        if output:
+            if target_directory != '' and not os.path.exists(target_directory):
+                os.makedirs(target_directory)
+            dst = os.path.join(target_directory,title + '.png')
+            plt.savefig(dst)
+        elif show:
+            plt.show()
+
+        plt.close(fig)
 
 class Player:
     def __init__(self, nflId, player_data,tracking_data):
