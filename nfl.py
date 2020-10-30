@@ -33,17 +33,25 @@ class Game:
     def nPlays(self):
         return len(self.plays)
 
+    @property
+    def info(self):
+        return str(self)
+
     def __str__(self):
         week = self.game_info['week']
         home_team = self.game_info['homeTeamAbbr']
         away_team = self.game_info['visitorTeamAbbr']
-        date = self.game_info['gameDate']
+        opponent = self.opponent
+        date = self.game_info['gameDate'].replace('/','-')
 
-        return f'Week {week}: {away_team} at {home_team} ({date})'
+        if opponent == home_team:
+            return f'Week {week} - {away_team} at {home_team} ({date})'
+        elif opponent == away_team:
+            return f'Week {week} - {home_team} vs {away_team} ({date})'
 
     def list_plays(self):
         for i in range(len(self.plays)):
-            print(f'Play {i}: {self.plays[i]}')
+            print(f'Play {i+1}: {self.plays[i]}')
 
 class Play:
     def __init__(self, playId, play_data, player_tracking, fb_tracking, defensive_team):
@@ -250,7 +258,7 @@ class Play:
 
         plt.show()
 
-    def create_gif(self,scale=1,markers=None,show=False,output=True,target_directory='play-viz',fps=10,name='play'):
+    def create_gif(self,scale=1,markers=None,show=False,output=True,target_directory='play-viz',fps=5,name='play'):
         image_folder = os.path.join(target_directory,'images')
         self.plot_play_frames(scale=scale,markers=markers,show=show,output=output,target_directory=image_folder)
         file_list = []
@@ -296,7 +304,7 @@ class Play:
 
         ax.scatter(self.fb_tracking['x'].values[index],
                    self.fb_tracking['y'].values[index],
-                   color='brown',zorder=3)
+                   color='brown',marker='d',zorder=3)
 
         title = f'Play Frame - {index+1}'
         ax.set_title(title,fontsize=18)
