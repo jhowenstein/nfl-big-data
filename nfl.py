@@ -18,6 +18,21 @@ class Team:
     def __str__(self):
         return self.abbr
 
+    def process_weeks(self, weeks):
+        for key in weeks.keys():
+            game = self.games[key]
+            
+            week_data = weeks[key]
+            
+            for i in game.play_data.index:
+                play = game.play_data.loc[i]
+                tracking_data = week_data[(week_data['gameId']==play['gameId'])&(week_data['playId']==play['playId'])]
+                player_tracking = tracking_data[tracking_data['nflId'].notna()]
+                fb_tracking = tracking_data[tracking_data['displayName']=='Football'].sort_values(by='frameId').reset_index(drop=True)
+                
+                game.plays.append(Play(play['playId'],play_data=play,player_tracking=player_tracking,
+                                    fb_tracking=fb_tracking,defensive_team=game.location))
+
 class Game:
     def __init__(self, gameId, opponent, game_info, play_data, location):
         self.gameId = gameId
@@ -84,6 +99,13 @@ class Play:
             if 'outcome' in event:
                 return event
         return None    # If no outcome event is found
+
+    @property
+    def hasForwardPass(self):
+        if 'pass_forward' in self.events:
+            return True
+        else:
+            return False
 
     def process_events(self):
         play_events = self.fb_tracking['event'].values
@@ -169,6 +191,14 @@ class Play:
 
         self.events['peak_dropback'] = peak_dropback + 1
         self.events['end_dropback'] = end_dropback + 1
+
+    def return_players_by_position(self, position):
+        result = []
+        for side in ('offense','defense'):
+            for player in self.players[side].values():
+                if player.position == position:
+                    result.append(player)
+        return result
 
     def calc_player_start_position(self, event='ball_snap'):
         pass
