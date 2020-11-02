@@ -2,12 +2,22 @@ import numpy as np
 import pandas as pd
 import scipy as sp
 
-import matplotlib.pyplot as plt
-
 import os
 import glob
 
-from nfl import Team, Game
+from .team import Team
+from .game import Game
+
+def load_data(basepath):
+    pass
+    #return games, players, plays
+
+def load_weeks(weeks):
+    pass
+    #return weeks
+
+def select_team(teams, abbr):
+    return
 
 def process_games(games, plays):
     team_names = games['homeTeamAbbr'].unique()
@@ -19,12 +29,10 @@ def process_games(games, plays):
     for i in range(games.shape[0]):
         _game_info = games.loc[i]
         gameId = _game_info['gameId']
-        #print(gameId)
         homeTeamAbbr = _game_info['homeTeamAbbr']
         visitorTeamAbbr = _game_info['visitorTeamAbbr']
         week = _game_info['week']
         
-        #print(plays.keys())
         game_plays = plays[plays['gameId'] == gameId]
         home_game_plays = game_plays[game_plays['possessionTeam']==homeTeamAbbr].sort_values(by=['playId']).reset_index(drop=True)
         away_game_plays = game_plays[game_plays['possessionTeam']==visitorTeamAbbr].sort_values(by=['playId']).reset_index(drop=True)

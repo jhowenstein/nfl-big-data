@@ -7,66 +7,7 @@ import matplotlib.pyplot as plt
 import os
 import glob
 
-import moviepy.editor as mpy
-
-class Team:
-    def __init__(self, abbr):
-        self.abbr = abbr
-
-        self.games = {}
-
-    def __str__(self):
-        return self.abbr
-
-    def process_weeks(self, weeks):
-        for key in weeks.keys():
-            game = self.games[key]
-            
-            week_data = weeks[key]
-            
-            for i in game.play_data.index:
-                play = game.play_data.loc[i]
-                tracking_data = week_data[(week_data['gameId']==play['gameId'])&(week_data['playId']==play['playId'])]
-                player_tracking = tracking_data[tracking_data['nflId'].notna()]
-                fb_tracking = tracking_data[tracking_data['displayName']=='Football'].sort_values(by='frameId').reset_index(drop=True)
-                
-                game.plays.append(Play(play['playId'],play_data=play,player_tracking=player_tracking,
-                                    fb_tracking=fb_tracking,defensive_team=game.location))
-
-class Game:
-    def __init__(self, gameId, opponent, game_info, play_data, location):
-        self.gameId = gameId
-        self.opponent = opponent
-        self.location = location
-        self.game_info = game_info
-
-        self.play_data = play_data
-
-        self.plays = []
-
-    @property
-    def nPlays(self):
-        return len(self.plays)
-
-    @property
-    def info(self):
-        return str(self)
-
-    def __str__(self):
-        week = self.game_info['week']
-        home_team = self.game_info['homeTeamAbbr']
-        away_team = self.game_info['visitorTeamAbbr']
-        opponent = self.opponent
-        date = self.game_info['gameDate'].replace('/','-')
-
-        if opponent == home_team:
-            return f'Week {week} - {away_team} at {home_team} ({date})'
-        elif opponent == away_team:
-            return f'Week {week} - {home_team} vs {away_team} ({date})'
-
-    def list_plays(self):
-        for i in range(len(self.plays)):
-            print(f'Play {i+1}: {self.plays[i]}')
+from .player import Player
 
 class Play:
     def __init__(self, playId, play_data, player_tracking, fb_tracking, defensive_team):
@@ -113,6 +54,10 @@ class Play:
         for k, event in enumerate(play_events):
             if event != 'None':
                 self.events[event] = k + 1
+
+    def process_tracking(self):
+        self.player_tracking['distance from line'] = self.player_tracking['x'] - self.line_of_scrimmage
+        self.player_tracking['distance to side line'] = [min((160/3) - y,y) for y in self.player_tracking['y'].values]
 
     def process_players(self, nfl_player_data):
         offensive_players = {}
@@ -289,6 +234,8 @@ class Play:
         plt.show()
 
     def create_gif(self,scale=1,markers=None,show=False,output=True,target_directory='play-viz',fps=5,name='play'):
+        import moviepy.editor as mpy
+
         image_folder = os.path.join(target_directory,'images')
         self.plot_play_frames(scale=scale,markers=markers,show=show,output=output,target_directory=image_folder)
         file_list = []
@@ -299,6 +246,8 @@ class Play:
         clip.write_gif(dst, fps=fps)
 
     def create_video(self,scale=1,markers=None,show=False,output=True,target_directory='play-viz',fps=10,name='play'):
+        import moviepy.editor as mpy
+
         image_folder = os.path.join(target_directory,'images')
         self.plot_play_frames(scale=scale,markers=markers,show=show,output=output,target_directory=image_folder)
         file_list = []
@@ -353,37 +302,3 @@ class Play:
             plt.show()
 
         plt.close(fig)
-
-class Player:
-    def __init__(self, nflId, player_data,tracking_data):
-        self.nflId = nflId
-        self.player_data = player_data
-        self.tracking_data = tracking_data
-
-    @property
-    def name(self):
-        return self.player_data['displayName']
-
-    @property
-    def position(self):
-        return self.player_data['position']
-        #return self.tracking_data.loc[0,'position']
-
-    @property
-    def number(self):
-        return int(self.tracking_data.loc[0,'jerseyNumber'])
-
-    @property
-    def height(self):
-        return self.player_data['height']
-
-    @property
-    def weight(self):
-        return self.player_data['weight']
-
-    @property
-    def birthDate(self):
-        return self.player_data['birthDate']
-
-    def __str__(self):
-        return self.name
