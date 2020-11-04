@@ -40,3 +40,7 @@ class Player:
 
     def __str__(self):
         return self.name
+
+    def distance_from_center(self, frame):
+        return self.tracking_data.loc[frame-1,'distance from center']
+

@@ -21,6 +21,7 @@ class Play:
         self.players = {}
 
         self.process_events()
+        self.process_tracking()
         
 
     def __str__(self):
@@ -57,7 +58,8 @@ class Play:
 
     def process_tracking(self):
         self.player_tracking['distance from line'] = self.player_tracking['x'] - self.line_of_scrimmage
-        self.player_tracking['distance to side line'] = [min((160/3) - y,y) for y in self.player_tracking['y'].values]
+        self.player_tracking['distance to sideline'] = [min((160/3) - y,y) for y in self.player_tracking['y'].values]
+        self.player_tracking['distance from center'] = self.player_tracking['y'] - (80/3)
 
     def process_players(self, nfl_player_data):
         offensive_players = {}
