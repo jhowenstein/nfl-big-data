@@ -13,6 +13,8 @@ class Player:
         self.player_data = player_data
         self.tracking_data = tracking_data
 
+        self.locks = []
+
     @property
     def name(self):
         return self.player_data['displayName']
