@@ -13,7 +13,9 @@ class Player:
         self.player_data = player_data
         self.tracking_data = tracking_data
 
+        #self.cover = []
         self.locks = []
+        # coupled, bound, cover
 
     @property
     def name(self):
@@ -45,4 +47,12 @@ class Player:
 
     def distance_from_center(self, frame):
         return self.tracking_data.loc[frame-1,'distance from center']
+
+    def distance_from_line(self, frame):
+        return self.tracking_data.loc[frame-1,'distance from line']
+
+    def location(self, frame):
+        x = self.tracking_data.loc[frame-1,'x']
+        y = self.tracking_data.loc[frame-1,'y']
+        return np.array([x,y])
 
