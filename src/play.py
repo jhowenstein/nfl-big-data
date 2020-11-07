@@ -49,6 +49,13 @@ class Play:
         else:
             return False
 
+    @property
+    def play_center(self):
+        qb_df = self.player_tracking[self.player_tracking['position']=='QB']
+        qb_start = qb_df[qb_df['frameId']==1]
+        center = qb_start['y'].values[0]
+        return center
+
     def process_events(self):
         play_events = self.fb_tracking['event'].values
 
@@ -59,7 +66,7 @@ class Play:
     def process_tracking(self):
         self.player_tracking['distance from line'] = self.player_tracking['x'] - self.line_of_scrimmage
         self.player_tracking['distance to sideline'] = [min((160/3) - y,y) for y in self.player_tracking['y'].values]
-        self.player_tracking['distance from center'] = self.player_tracking['y'] - (80/3)
+        self.player_tracking['distance from center'] = self.player_tracking['y'] - self.play_center
 
     def process_players(self, nfl_player_data):
         offensive_players = {}
@@ -146,6 +153,13 @@ class Play:
                 if player.position == position:
                     result.append(player)
         return result
+
+    def return_receivers(self):
+        positions = ('WR','TE','RB','HB')
+        _players = []
+        for pos in positions:
+            _players += self.return_players_by_position(pos)
+        return _players
 
     def calc_player_start_position(self, event='ball_snap'):
         pass
