@@ -16,6 +16,7 @@ class Player:
 
         #self.cover = []
         self.locks = []
+        self.zone_loc = None
         # coupled, bound, cover
 
     @property
@@ -46,6 +47,44 @@ class Player:
     @property
     def hasLock(self):
         return len(self.locks) > 0
+
+    @property
+    def x(self):
+        return self.tracking_data['x'].values
+
+    @property
+    def y(self):
+        return self.tracking_data['y'].values
+
+    @property
+    def dx(self):
+        x = self.tracking_data['x'].values
+        N = len(x)
+        dx = np.zeros(N)
+        for i in range(1,N-1):
+            dx[i] = (x[i+1] - x[i-1]) / 2
+        return dx
+
+    @property
+    def dy(self):
+        y = self.tracking_data['y'].values
+        N = len(y)
+        dy = np.zeros(N)
+        for i in range(1,N-1):
+            dy[i] = (y[i+1] - y[i-1]) / 2
+        return dy
+
+    @property
+    def s(self):
+        return self.tracking_data['s'].values
+
+    @property
+    def a(self):
+        return self.tracking_data['a'].values
+
+    @property
+    def dir(self):
+        return self.tracking_data['dir'].values
 
     def __str__(self):
         return self.name
@@ -107,6 +146,32 @@ class Player:
 
         rect = mpatches.Rectangle((bx,by), width=w, height=h, ec='k',fc='none')
         ax.add_patch(rect)
+
+    def draw_zone(self, ax):
+        if self.zone_loc is None:
+            return
+
+        radius=self.compute_zone_radius()
+
+        init_pos = self.location(1)  #TODO: Change this to position at ball snap
+
+        ax.plot([init_pos[0],self.zone_loc[0]],[init_pos[1],self.zone_loc[1]],color='yellow',alpha=.7)
+        circle = mpatches.Circle(tuple(self.zone_loc), radius, ec='none',fc='yellow',alpha=.5)
+        ax.add_patch(circle)
+
+    def compute_zone_radius(self):
+        if self.position in ('FS','SS','S'):
+            radius = 7
+        elif self.position == 'CB':
+            radius = 5
+        elif self.position in ('LB','MLB','ILB','OLB'):
+            radius = 3
+        return radius
+
+    def draw_coverage(self, ax):
+        pass
+
+        
 
     
 

@@ -154,6 +154,12 @@ class Play:
                     result.append(player)
         return result
 
+    def return_player_by_number(self, number, side='defense'):
+        for player in self.players[side].values():
+            if player.number == number:
+                return player
+        return None
+
     def return_receivers(self):
         positions = ('WR','TE','RB','HB')
         _players = []
@@ -161,8 +167,139 @@ class Play:
             _players += self.return_players_by_position(pos)
         return _players
 
+    def return_defensive_backs(self):
+        positions = ('CB','FS','SS','S')
+        _players = []
+        for pos in positions:
+            _players += self.return_players_by_position(pos)
+        return _players
+
+    def return_safeties(self):
+        positions = ('FS','SS','S')
+        _players = []
+        for pos in positions:
+            _players += self.return_players_by_position(pos)
+        return _players
+
+    def return_linebackers(self):
+        positions = ('LB','MLB','ILB','OLB')
+        _players = []
+        for pos in positions:
+            _players += self.return_players_by_position(pos)
+        return _players
+
     def calc_player_start_position(self, event='ball_snap'):
         pass
+
+    def find_initial_locks(self):
+        frame = self.events['ball_snap']
+
+        horizontal_cover_threshold = 2.0
+        db_distance_from_line_threshold = 7.5
+        rc_distance_from_line_threshold = 3.0
+
+        # Load Defensive Backs
+        dbacks = self.return_defensive_backs() + self.return_linebackers()
+
+        # Load Receivers
+        receivers = self.return_receivers()
+
+        # Separate Defensive Backs by Top/Bottom
+        top_dbacks = []
+        bottom_dbacks = []
+        for db in dbacks:
+            if db.distance_from_center(frame) > 0:
+                top_dbacks.append(db)
+            else:
+                bottom_dbacks.append(db)
+
+        # Separate Receivers by Top/Bottom
+        uncovered_top_receivers = []
+        uncovered_bottom_receivers = []
+        for rc in receivers:
+            if rc.distance_from_center(frame) > 0:
+                uncovered_top_receivers.append(rc)
+            else:
+                uncovered_bottom_receivers.append(rc)
+
+        # Sort Players from outside to inside
+        top_dbacks.sort(reverse=True, key=lambda player: player.distance_from_center(frame))
+        bottom_dbacks.sort(key=lambda player: player.distance_from_center(frame))
+        uncovered_top_receivers.sort(reverse=True, key=lambda player: player.distance_from_center(frame))
+        uncovered_bottom_receivers.sort(key=lambda player: player.distance_from_center(frame))
+
+        # Find initial top locks
+        for db in top_dbacks:
+            print(f'{db.name} ({db.position}-{db.number})')
+            for rc in uncovered_top_receivers:
+                dx, dy, r = db.distance_to_player(rc, frame)
+                print(f'  Horizontal distance to {rc.name} = {dy:.1f}')
+                lock_condition1 = abs(dy) < horizontal_cover_threshold
+                lock_condition2 = db.distance_from_line(frame) < db_distance_from_line_threshold
+                lock_condition3 = abs(rc.distance_from_line(frame)) < rc_distance_from_line_threshold
+                if lock_condition1 and lock_condition2 and lock_condition3:
+                    print(f'    {db.name} ({db.position}-{db.number}) covering {rc.name} ({rc.position}-{rc.number})')
+                    db.lock(rc)
+                    uncovered_top_receivers.remove(rc)
+
+        # Find initial bottom locks
+        for db in bottom_dbacks:
+            print(f'{db.name} ({db.position}-{db.number})')
+            for rc in uncovered_bottom_receivers:
+                dx, dy, r = db.distance_to_player(rc, frame)
+                print(f'  Horizontal distance to {rc.name} = {dy:.1f}')
+                lock_condition1 = abs(dy) < horizontal_cover_threshold
+                lock_condition2 = db.distance_from_line(frame) < db_distance_from_line_threshold
+                lock_condition3 = abs(rc.distance_from_line(frame)) < rc_distance_from_line_threshold
+                if lock_condition1 and lock_condition2 and lock_condition3:
+                    print(f'    {db.name} ({db.position}-{db.number}) covering {rc.name} ({rc.position}-{rc.number})')
+                    db.lock(rc)
+                    uncovered_bottom_receivers.remove(rc)
+
+        self.check_locks()
+
+    def check_locks(self):
+        start = self.events['ball_snap'] - 1
+        end = self.events['pass_forward']
+        half = start + ((end - start) // 3) * 2
+
+        threshold = 3.0
+
+        def orientation_array(theta):
+            _theta = np.radians(theta)
+            return np.array([np.sin(_theta),np.cos(_theta)])
+
+        # Load Defensive Backs
+        dbacks = self.return_defensive_backs() + self.return_linebackers()
+        for db in dbacks:
+            if not db.hasLock:
+                continue
+
+            rc = db.locks[0]
+
+            db_mean_dir = db.dir[half:end].mean()
+            db_mean_s = db.s[half:end].mean()
+
+            rc_mean_dir = rc.dir[half:end].mean()
+            rc_mean_s = rc.s[half:end].mean()
+
+            db_target_pt = orientation_array(db_mean_dir) * db_mean_s
+            rc_target_pt = orientation_array(rc_mean_dir) * rc_mean_s
+
+            delta = db_target_pt - rc_target_pt
+            delta_norm = np.linalg.norm(delta)
+            if delta_norm > threshold:
+                db.unlock(rc)
+
+    def find_zone_locations(self):
+        frame = self.events['pass_forward'] - 1
+
+        # Load Defensive Backs
+        dbacks = self.return_defensive_backs() + self.return_linebackers()
+
+        for db in dbacks:
+            if not db.hasLock:
+                db.zone_loc = db.location(frame)
 
     def build_field(self, scale=1):
         sideline_to_hash = 68.75    # In feet
@@ -273,11 +410,12 @@ class Play:
         dst = os.path.join(target_directory,f'{name}.mp4')
         clip.write_videofile(dst,fps=fps)
 
-    def plot_play_frames(self, scale=1, markers=None, show=False, output=True, target_directory=''):
+    def plot_play_frames(self, scale=1, markers=None, show_coverage=False, show=False, output=True, target_directory=''):
         for i in range(self.nFrames):
-            self.plot_play_frame(index=i,scale=scale,markers=markers,show=show,output=output,target_directory=target_directory)
+            self.plot_play_frame(index=i,scale=scale,markers=markers,show_coverage=show_coverage,
+                                    show=show,output=output,target_directory=target_directory)
 
-    def plot_play_frame(self, index, scale=1, markers=None, show=True, output=False, target_directory=''):
+    def plot_play_frame(self, index, scale=1, markers=None, show_coverage=False, show=True, output=False, target_directory=''):
         if isinstance(index,str):
             index = self.events[index] - 1
 
@@ -300,6 +438,11 @@ class Play:
         ax.scatter(self.fb_tracking['x'].values[index],
                    self.fb_tracking['y'].values[index],
                    color='brown',marker='d',zorder=3)
+
+        if show_coverage:
+            for player in self.players['defense'].values():
+                player.draw_lock(ax,index+1)
+                player.draw_zone(ax)
 
         title = f'Play Frame - {index+1}'
         ax.set_title(title,fontsize=18)
