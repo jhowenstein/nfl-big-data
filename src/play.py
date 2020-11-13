@@ -258,6 +258,23 @@ class Play:
 
         self.check_locks()
 
+    def find_blitz(self):
+        frame = self.events['pass_forward']
+        dbacks = self.return_defensive_backs() + self.return_linebackers()
+        for db in dbacks:
+            x,y = db.location(frame)
+
+            dx = x - self.line_of_scrimmage
+
+            if dx < 0:
+                # Player is behind line of scrimmage at ball release. Classify as blitz
+                if db.hasLock:
+                    rc = db.locks[0]
+                    db.unlock(rc)
+                
+                db.blitz = True
+                db.blitz_loc = (x,y)
+
     def check_locks(self):
         start = self.events['ball_snap'] - 1
         end = self.events['pass_forward']
@@ -298,7 +315,7 @@ class Play:
         dbacks = self.return_defensive_backs() + self.return_linebackers()
 
         for db in dbacks:
-            if not db.hasLock:
+            if not db.hasLock and not db.blitz:
                 db.zone_loc = db.location(frame)
 
     def build_field(self, scale=1):
@@ -442,6 +459,7 @@ class Play:
         if show_coverage:
             for player in self.players['defense'].values():
                 player.draw_lock(ax,index+1)
+                player.draw_blitz(ax)
                 player.draw_zone(ax)
 
         title = f'Play Frame - {index+1}'

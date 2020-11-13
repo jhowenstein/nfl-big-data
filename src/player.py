@@ -17,6 +17,8 @@ class Player:
         #self.cover = []
         self.locks = []
         self.zone_loc = None
+        self.blitz = False
+        self.blitz_loc = None
         # coupled, bound, cover
 
     @property
@@ -146,6 +148,18 @@ class Player:
 
         rect = mpatches.Rectangle((bx,by), width=w, height=h, ec='k',fc='none')
         ax.add_patch(rect)
+
+    def draw_blitz(self, ax):
+        if not self.blitz:
+            return
+
+        init_pos = self.location(11)
+        dx = self.blitz_loc[0] - init_pos[0]
+        dy = self.blitz_loc[1] - init_pos[1]
+
+        ax.arrow(init_pos[0], init_pos[1], dx, dy, head_width = 1.5,  head_length = 1.5, color='orange',alpha=.7, linewidth=2)
+
+
 
     def draw_zone(self, ax):
         if self.zone_loc is None:
