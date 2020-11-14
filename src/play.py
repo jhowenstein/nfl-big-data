@@ -191,7 +191,7 @@ class Play:
     def calc_player_start_position(self, event='ball_snap'):
         pass
 
-    def find_initial_locks(self):
+    def find_initial_locks(self, verbose=False):
         frame = self.events['ball_snap']
 
         horizontal_cover_threshold = 2.0
@@ -230,10 +230,12 @@ class Play:
 
         # Find initial top locks
         for db in top_dbacks:
-            print(f'{db.name} ({db.position}-{db.number})')
+            if verbose:
+                print(f'{db.name} ({db.position}-{db.number}) - Distance to Line: {db.distance_from_line(frame):.1f}')
             for rc in uncovered_top_receivers:
                 dx, dy, r = db.distance_to_player(rc, frame)
-                print(f'  Horizontal distance to {rc.name} = {dy:.1f}')
+                if verbose:
+                    print(f'  Horizontal distance to {rc.name} = {dy:.1f}')
                 lock_condition1 = abs(dy) < horizontal_cover_threshold
                 lock_condition2 = db.distance_from_line(frame) < db_distance_from_line_threshold
                 lock_condition3 = abs(rc.distance_from_line(frame)) < rc_distance_from_line_threshold
@@ -244,10 +246,12 @@ class Play:
 
         # Find initial bottom locks
         for db in bottom_dbacks:
-            print(f'{db.name} ({db.position}-{db.number})')
+            if verbose:
+                print(f'{db.name} ({db.position}-{db.number})')
             for rc in uncovered_bottom_receivers:
                 dx, dy, r = db.distance_to_player(rc, frame)
-                print(f'  Horizontal distance to {rc.name} = {dy:.1f}')
+                if verbose:
+                    print(f'  Horizontal distance to {rc.name} = {dy:.1f}')
                 lock_condition1 = abs(dy) < horizontal_cover_threshold
                 lock_condition2 = db.distance_from_line(frame) < db_distance_from_line_threshold
                 lock_condition3 = abs(rc.distance_from_line(frame)) < rc_distance_from_line_threshold
@@ -256,7 +260,7 @@ class Play:
                     db.lock(rc)
                     uncovered_bottom_receivers.remove(rc)
 
-        self.check_locks()
+        self.check_locks(verbose=verbose)
 
     def find_blitz(self):
         frame = self.events['pass_forward']
@@ -274,13 +278,16 @@ class Play:
                 
                 db.blitz = True
                 db.blitz_loc = (x,y)
+                print(f'    {db.name} ({db.position}-{db.number}) Bltizing')
 
-    def check_locks(self):
+
+    def check_locks(self, verbose=False):
         start = self.events['ball_snap'] - 1
         end = self.events['pass_forward']
         half = start + ((end - start) // 3) * 2
+        wrap_window = 15
 
-        threshold = 3.0
+        threshold = 2.9
 
         def orientation_array(theta):
             _theta = np.radians(theta)
@@ -294,10 +301,18 @@ class Play:
 
             rc = db.locks[0]
 
-            db_mean_dir = db.dir[half:end].mean()
+            db_last_third_dir = db.dir[half:end]
+            if (db_last_third_dir > (360-wrap_window)).any() and (db_last_third_dir < wrap_window).any():
+                db_last_third_dir = (db_last_third_dir + 180) % 360 - 180
+
+            db_mean_dir = db_last_third_dir.mean()
             db_mean_s = db.s[half:end].mean()
 
-            rc_mean_dir = rc.dir[half:end].mean()
+            rc_last_third_dir = rc.dir[half:end]
+            if (rc_last_third_dir > (360-wrap_window)).any() and (rc_last_third_dir < wrap_window).any():
+                rc_last_third_dir = (rc_last_third_dir + 180) % 360 - 180
+
+            rc_mean_dir = rc_last_third_dir.mean()
             rc_mean_s = rc.s[half:end].mean()
 
             db_target_pt = orientation_array(db_mean_dir) * db_mean_s
@@ -307,6 +322,9 @@ class Play:
             delta_norm = np.linalg.norm(delta)
             if delta_norm > threshold:
                 db.unlock(rc)
+
+            if verbose:
+                print(f'{db.name} ({db.position}-{db.number}) direction distance to {rc.name} ({rc.position}-{rc.number}): {delta_norm:.1f}')
 
     def find_zone_locations(self):
         frame = self.events['pass_forward'] - 1
