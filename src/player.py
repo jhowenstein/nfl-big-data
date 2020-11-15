@@ -8,6 +8,8 @@ import matplotlib.patches as mpatches
 import os
 import glob
 
+from .math_tools import orientation_array
+
 class Player:
     def __init__(self, nflId, player_data,tracking_data):
         self.nflId = nflId
@@ -102,6 +104,12 @@ class Player:
         y = self.tracking_data.loc[frame-1,'y']
         return np.array([x,y])
 
+    def movement(self, frame):
+        speed = self.tracking_data.loc[frame-1,'s']
+        direction = self.tracking_data.loc[frame-1,'dir']
+        target = orientation_array(direction) * speed
+        return target
+
     def lock(self, other):
         if other not in self.locks:
             self.locks.append(other)
@@ -158,8 +166,6 @@ class Player:
         dy = self.blitz_loc[1] - init_pos[1]
 
         ax.arrow(init_pos[0], init_pos[1], dx, dy, head_width = 1.5,  head_length = 1.5, color='orange',alpha=.7, linewidth=2)
-
-
 
     def draw_zone(self, ax):
         if self.zone_loc is None:

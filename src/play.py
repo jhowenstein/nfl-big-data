@@ -8,6 +8,7 @@ import os
 import glob
 
 from .player import Player
+from .math_tools import orientation_array
 
 class Play:
     def __init__(self, playId, play_data, player_tracking, fb_tracking, defensive_team):
@@ -247,7 +248,7 @@ class Play:
         # Find initial bottom locks
         for db in bottom_dbacks:
             if verbose:
-                print(f'{db.name} ({db.position}-{db.number})')
+                print(f'{db.name} ({db.position}-{db.number}) - Distance to Line: {db.distance_from_line(frame):.1f}')
             for rc in uncovered_bottom_receivers:
                 dx, dy, r = db.distance_to_player(rc, frame)
                 if verbose:
@@ -284,14 +285,13 @@ class Play:
     def check_locks(self, verbose=False):
         start = self.events['ball_snap'] - 1
         end = self.events['pass_forward']
-        half = start + ((end - start) // 3) * 2
+        onethird = start + ((end - start) // 3)
+        twothirds = start + ((end - start) // 3) * 2
         wrap_window = 15
 
         threshold = 2.9
 
-        def orientation_array(theta):
-            _theta = np.radians(theta)
-            return np.array([np.sin(_theta),np.cos(_theta)])
+        pos_threshold = 5.0
 
         # Load Defensive Backs
         dbacks = self.return_defensive_backs() + self.return_linebackers()
@@ -301,30 +301,49 @@ class Play:
 
             rc = db.locks[0]
 
-            db_last_third_dir = db.dir[half:end]
+            db_last_third_dir = db.dir[twothirds:end]
             if (db_last_third_dir > (360-wrap_window)).any() and (db_last_third_dir < wrap_window).any():
                 db_last_third_dir = (db_last_third_dir + 180) % 360 - 180
 
             db_mean_dir = db_last_third_dir.mean()
-            db_mean_s = db.s[half:end].mean()
+            db_mean_s = db.s[twothirds:end].mean()
 
-            rc_last_third_dir = rc.dir[half:end]
+            rc_last_third_dir = rc.dir[twothirds:end]
             if (rc_last_third_dir > (360-wrap_window)).any() and (rc_last_third_dir < wrap_window).any():
                 rc_last_third_dir = (rc_last_third_dir + 180) % 360 - 180
 
             rc_mean_dir = rc_last_third_dir.mean()
-            rc_mean_s = rc.s[half:end].mean()
+            rc_mean_s = rc.s[twothirds:end].mean()
 
             db_target_pt = orientation_array(db_mean_dir) * db_mean_s
             rc_target_pt = orientation_array(rc_mean_dir) * rc_mean_s
 
             delta = db_target_pt - rc_target_pt
             delta_norm = np.linalg.norm(delta)
-            if delta_norm > threshold:
-                db.unlock(rc)
 
             if verbose:
                 print(f'{db.name} ({db.position}-{db.number}) direction distance to {rc.name} ({rc.position}-{rc.number}): {delta_norm:.1f}')
+
+            if delta_norm > threshold:
+                db.unlock(rc)
+                print(f'    {db.name} ({db.position}-{db.number}) - Zone on end movement criteria')
+                continue
+
+            for i in range(onethird, end):
+                pos_delta = db.location(i) - rc.location(i)
+                mov_delta = db.movement(i) - rc.movement(i)
+
+                pos_delta_norm = np.linalg.norm(pos_delta)
+                mov_delta_norm = np.linalg.norm(mov_delta)
+
+                if pos_delta_norm >= pos_threshold:
+                    if mov_delta_norm > threshold or pos_delta_norm > 2 * pos_threshold:
+                        db.unlock(rc)
+                        print(f'    {db.name} ({db.position}-{db.number}) - Zone on separation criteria')
+                        if verbose:
+                            print(f'      Frame: {i}: Positional Delta: {pos_delta_norm:.1f}  -  Movement Delta: {mov_delta_norm:.1f}')
+                        break
+
 
     def find_zone_locations(self):
         frame = self.events['pass_forward'] - 1
