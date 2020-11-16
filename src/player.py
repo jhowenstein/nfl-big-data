@@ -16,12 +16,13 @@ class Player:
         self.player_data = player_data
         self.tracking_data = tracking_data
 
-        #self.cover = []
-        self.locks = []
-        self.zone_loc = None
+        self.man = False
         self.blitz = False
+        self.zone = False
+
+        self.locks = []
         self.blitz_loc = None
-        # coupled, bound, cover
+        self.zone_loc = None
 
     @property
     def name(self):
@@ -89,6 +90,45 @@ class Player:
     @property
     def dir(self):
         return self.tracking_data['dir'].values
+
+    @property
+    def blitzing(self):
+        if self.blitz_loc is not None:
+            return True
+        else:
+            return False
+
+    @property
+    def man_coverage(self):
+        return self.hasLock
+
+    @property
+    def zone_coverage(self):
+        if self.zone_loc is not None:
+            return True
+        else:
+            return False
+
+    @property
+    def coverage(self):
+        _coverage = None
+
+        if self.man_coverage:
+            if _coverage is None:
+                _coverage = 'man'
+            else:
+                print(f'Error! {self} has has more than one coverage type!')
+        if self.zone_coverage:
+            if _coverage is None:
+                _coverage = 'zone'
+            else:
+                print(f'Error! {self} has has more than one coverage type!')
+        if self.blitzing:
+            if _coverage is None:
+                _coverage = 'blitz'
+            else:
+                print(f'Error! {self} has has more than one coverage type!')
+        return _coverage
 
     def __str__(self):
         return self.name

@@ -277,7 +277,6 @@ class Play:
                     rc = db.locks[0]
                     db.unlock(rc)
                 
-                db.blitz = True
                 db.blitz_loc = (x,y)
                 print(f'    {db.name} ({db.position}-{db.number}) Bltizing')
 
@@ -352,7 +351,7 @@ class Play:
         dbacks = self.return_defensive_backs() + self.return_linebackers()
 
         for db in dbacks:
-            if not db.hasLock and not db.blitz:
+            if not db.hasLock and not db.blitzing:
                 db.zone_loc = db.location(frame)
 
     def build_field(self, scale=1):
