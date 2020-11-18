@@ -57,6 +57,15 @@ class Play:
         center = qb_start['y'].values[0]
         return center
 
+    @property
+    def defensive_coverage_shell(self):
+        safeties = self.return_safeties()
+
+        # If there are three safeties, picks the deepest two
+        if len(safeties) > 2:
+            safeties.sort(key=lambda x: x.distance_from_line(self.events['ball_snap']),reverse=True)
+            safeties = safeties[0:2]
+
     def process_events(self):
         play_events = self.fb_tracking['event'].values
 
