@@ -66,6 +66,38 @@ class Play:
             safeties.sort(key=lambda x: x.distance_from_line(self.events['ball_snap']),reverse=True)
             safeties = safeties[0:2]
 
+        deep_safety_count = 0
+        for s in safeties:
+            movement_to_zone = s.distance_from_line(self.events['pass_forward']) - s.distance_from_line(self.events['ball_snap'])
+            movement_to_zone_threshold = -0.5
+            if s.distance_from_line(self.events['pass_forward']) > 10 and movement_to_zone > movement_to_zone_threshold:
+                deep_safety_count += 1
+
+        if deep_safety_count == 0:
+            return 'cover 1'
+
+        top_corner, bottom_corner = self.return_outside_corners()
+
+        if deep_safety_count == 1:
+            if top_corner is not None and bottom_corner is not None:
+                if top_corner.zone and bottom_corner.zone:
+                    return 'cover 3'
+                else:
+                    return 'cover 1'
+            else:
+                return 'cover 1'
+
+        if deep_safety_count == 2:
+            if top_corner is not None and bottom_corner is not None:
+                if top_corner.zone and bottom_corner.zone:
+                    return 'cover 4'
+                elif (top_corner.zone and bottom_corner.man) or (top_corner.man and bottom_corner.zone):
+                    return 'cover 6'
+                else:
+                    return 'cover 2'
+            else:
+                return 'cover 2'
+
     def process_events(self):
         play_events = self.fb_tracking['event'].values
 
@@ -197,6 +229,34 @@ class Play:
         for pos in positions:
             _players += self.return_players_by_position(pos)
         return _players
+
+    def return_outside_corners(self):
+        frame = self.events['ball_snap']
+
+        corners = self.return_players_by_position('CB')
+
+        top_corners = []
+        bottom_corners = []
+        for cb in corners:
+            if cb.distance_from_center(frame) > 0:
+                top_corners.append(cb)
+            else:
+                bottom_corners.append(cb)
+
+        top_corners.sort(reverse=True, key=lambda player: player.distance_from_center(frame))
+        bottom_corners.sort(key=lambda player: player.distance_from_center(frame))
+
+        if len(top_corners) > 0:
+            top_corner = top_corners[0]
+        else:
+            top_corner = None
+
+        if len(bottom_corners) > 0:
+            bottom_corner = bottom_corners[0]
+        else:
+            bottom_corner = None
+
+        return top_corner, bottom_corner
 
     def calc_player_start_position(self, event='ball_snap'):
         pass
