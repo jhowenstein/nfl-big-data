@@ -58,7 +58,25 @@ class Play:
         return center
 
     @property
+    def defensive_personal_package(self):
+        number_defensive_backs = int(self.play_data['personnelD'].split(', ')[-1].split()[0])
+
+        if number_defensive_backs < 4:
+            return 'heavy'
+        elif number_defensive_backs == 4:
+            return 'standard'
+        elif number_defensive_backs == 5:
+            return 'nickel'
+        elif number_defensive_backs == 6:
+            return 'dime'
+        elif number_defensive_backs > 6:
+            return 'quarter'
+
+    @property
     def defensive_coverage_shell(self):
+        movement_to_zone_threshold = -0.5
+        deep_zone_threshold = 10
+
         safeties = self.return_safeties()
 
         # If there are three safeties, picks the deepest two
@@ -68,9 +86,12 @@ class Play:
 
         deep_safety_count = 0
         for s in safeties:
+            if not s.zone_coverage:
+                continue
+
             movement_to_zone = s.distance_from_line(self.events['pass_forward']) - s.distance_from_line(self.events['ball_snap'])
-            movement_to_zone_threshold = -0.5
-            if s.distance_from_line(self.events['pass_forward']) > 10 and movement_to_zone > movement_to_zone_threshold:
+
+            if s.distance_from_line(self.events['pass_forward']) > deep_zone_threshold and movement_to_zone > movement_to_zone_threshold:
                 deep_safety_count += 1
 
         if deep_safety_count == 0:
@@ -80,7 +101,7 @@ class Play:
 
         if deep_safety_count == 1:
             if top_corner is not None and bottom_corner is not None:
-                if top_corner.zone and bottom_corner.zone:
+                if top_corner.zone_coverage and bottom_corner.zone_coverage:
                     return 'cover 3'
                 else:
                     return 'cover 1'
@@ -89,14 +110,52 @@ class Play:
 
         if deep_safety_count == 2:
             if top_corner is not None and bottom_corner is not None:
-                if top_corner.zone and bottom_corner.zone:
+                if top_corner.zone_coverage and bottom_corner.zone_coverage:
                     return 'cover 4'
-                elif (top_corner.zone and bottom_corner.man) or (top_corner.man and bottom_corner.zone):
-                    return 'cover 6'
+                elif (top_corner.zone_coverage and bottom_corner.man_coverage):
+                    if top_corner.distance_from_line(self.events['pass_forward']) > deep_zone_threshold:
+                        return 'cover 6'
+                    else:
+                        return 'cover 2'
+                elif (top_corner.man_coverage and bottom_corner.zone_coverage):
+                    if bottom_corner.distance_from_line(self.events['pass_forward']) > deep_zone_threshold:
+                        return 'cover 6'
+                    else:
+                        return 'cover 2'
                 else:
                     return 'cover 2'
             else:
                 return 'cover 2'
+
+    def return_deep_safeties(self):
+        movement_to_zone_threshold = -0.5
+        deep_zone_threshold = 10
+
+        safeties = self.return_safeties()
+
+        # If there are three safeties, picks the deepest two
+        if len(safeties) > 2:
+            safeties.sort(key=lambda x: x.distance_from_line(self.events['ball_snap']),reverse=True)
+            safeties = safeties[0:2]
+
+        top_safety = None
+        bottom_safety = None
+        center_safety = None
+
+        for s in safeties:
+            movement_to_zone = s.distance_from_line(self.events['pass_forward']) - s.distance_from_line(self.events['ball_snap'])
+
+            if s.zone_coverage and s.distance_from_line(self.events['pass_forward']) > deep_zone_threshold and movement_to_zone > movement_to_zone_threshold:
+                distance_from_center = s.distance_from_center(self.events['pass_forward'])
+
+                if abs(distance_from_center) < 5 and center_safety is None:
+                    center_safety = s
+                elif s.side(self.events['pass_forward']) == 'top' and top_safety is None:
+                    top_safety = s
+                elif s.side(self.events['pass_forward']) == 'bottom' and bottom_safety is None:
+                    bottom_safety = s
+
+        return top_safety, center_safety, bottom_safety
 
     def process_events(self):
         play_events = self.fb_tracking['event'].values
@@ -187,6 +246,11 @@ class Play:
 
         self.events['peak_dropback'] = peak_dropback + 1
         self.events['end_dropback'] = end_dropback + 1
+
+    def process_coverage(self, verbose=False):
+        self.find_initial_locks(verbose=verbose)
+        self.find_blitz()
+        self.find_zone_locations()
 
     def return_players_by_position(self, position):
         result = []
@@ -422,6 +486,26 @@ class Play:
         for db in dbacks:
             if not db.hasLock and not db.blitzing:
                 db.zone_loc = db.location(frame)
+
+    def determine_safety_help(self):
+        safety_help_range = 10
+
+        top_safety, center_safety, bottom_safety = self.return_deep_safeties()
+
+        dbacks = self.return_defensive_backs() + self.return_linebackers()
+
+        for dback in dbacks:
+            if dback in (top_safety, center_safety, bottom_safety):
+                continue
+
+            for safety in (top_safety, center_safety, bottom_safety):
+                if safety is None:
+                    continue
+
+                relative_pos = safety.distance_to_center(self.events['pass_forward']) - dback.distance_to_center(self.events['pass_forward'])
+
+                if abs(relative_pos) < safety_help_range:
+                    dback.safety_help = True
 
     def build_field(self, scale=1):
         sideline_to_hash = 68.75    # In feet

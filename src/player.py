@@ -16,13 +16,11 @@ class Player:
         self.player_data = player_data
         self.tracking_data = tracking_data
 
-        self.man = False
-        self.blitz = False
-        self.zone = False
-
         self.locks = []
         self.blitz_loc = None
         self.zone_loc = None
+
+        self.safety_help = False
 
     @property
     def name(self):
@@ -149,6 +147,13 @@ class Player:
         direction = self.tracking_data.loc[frame-1,'dir']
         target = orientation_array(direction) * speed
         return target
+
+    def side(self, frame):
+        d = self.distance_from_center(frame)
+        if d > 0:
+            return 'top'
+        else:
+            return 'bottom'
 
     def lock(self, other):
         if other not in self.locks:
