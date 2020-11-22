@@ -251,6 +251,7 @@ class Play:
         self.find_initial_locks(verbose=verbose)
         self.find_blitz()
         self.find_zone_locations()
+        self.determine_safety_help()
 
     def return_players_by_position(self, position):
         result = []
@@ -498,11 +499,13 @@ class Play:
             if dback in (top_safety, center_safety, bottom_safety):
                 continue
 
+            dback.safety_help = False
+
             for safety in (top_safety, center_safety, bottom_safety):
                 if safety is None:
                     continue
 
-                relative_pos = safety.distance_to_center(self.events['pass_forward']) - dback.distance_to_center(self.events['pass_forward'])
+                relative_pos = safety.distance_from_center(self.events['pass_forward']) - dback.distance_from_center(self.events['pass_forward'])
 
                 if abs(relative_pos) < safety_help_range:
                     dback.safety_help = True

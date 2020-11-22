@@ -51,7 +51,7 @@ class Game:
         for i in range(len(self.plays)):
             print(f'Play {i+1}: {self.plays[i]}')
 
-    def defense_coverage_shells(self):
+    def classify_defensive_coverage_shells(self):
         defensive_shells = {}
         defensive_shells['cover 1'] = 0
         defensive_shells['cover 2'] = 0
@@ -65,3 +65,52 @@ class Game:
                 defensive_shells[coverage_shell] += 1
 
         return defensive_shells
+
+    def classify_defensive_back_coverages(self, percentage=False):
+        coverage_counts = {}
+        coverage_names = ('zone','zone-deep','zone-over','man','man-over','blitz')
+        
+        for play in self.plays:
+            
+            dbacks = play.return_defensive_backs() + play.return_linebackers()
+            for dback in dbacks:
+                #print(f'Defensive Player Name: {dback.name}')
+                if dback.name is None:
+                    continue
+
+                if not dback.name in coverage_counts:
+                    coverage_options = {}
+                    coverage_options['snaps'] = 0
+                    for coverage_name in coverage_names:
+                        coverage_options[coverage_name] = 0
+
+                    coverage_counts[dback.name] = coverage_options
+
+                _coverage = dback.coverage
+
+                if _coverage is None:    # No coverage currently calculated on blitzes
+                    continue
+
+                if _coverage == 'zone':
+                    if dback.safety_help is None:
+                        _coverage += '-deep'
+                    elif dback.safety_help == True:
+                        _coverage += '-over'
+                    
+                if _coverage == 'man':
+                    if dback.safety_help == 'True':
+                        _coverage += '-over'
+
+                coverage_counts[dback.name][_coverage] += 1
+                coverage_counts[dback.name]['snaps'] += 1
+
+        if percentage:
+            for counts in coverage_counts.values():
+                N = counts['snaps']
+                for coverage_name in coverage_names:
+                    counts[coverage_name] = round(counts[coverage_name] / N,2)
+
+        return coverage_counts
+
+
+        

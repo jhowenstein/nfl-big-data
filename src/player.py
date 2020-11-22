@@ -20,7 +20,7 @@ class Player:
         self.blitz_loc = None
         self.zone_loc = None
 
-        self.safety_help = False
+        self.safety_help = None    # Changed to true/false after processing
 
     @property
     def name(self):
@@ -203,7 +203,7 @@ class Player:
         ax.add_patch(rect)
 
     def draw_blitz(self, ax):
-        if not self.blitz:
+        if not self.blitzing:
             return
 
         init_pos = self.location(11)
