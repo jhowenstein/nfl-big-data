@@ -52,9 +52,7 @@ class Play:
 
     @property
     def play_center(self):
-        qb_df = self.player_tracking[self.player_tracking['position']=='QB']
-        qb_start = qb_df[qb_df['frameId']==1]
-        center = qb_start['y'].values[0]
+        center = self.fb_tracking.loc[0,'y']
         return center
 
     @property

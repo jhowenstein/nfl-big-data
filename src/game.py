@@ -51,6 +51,13 @@ class Game:
         for i in range(len(self.plays)):
             print(f'Play {i+1}: {self.plays[i]}')
 
+    def process_plays(self, players):
+        for play in self.plays:
+            play.process_players(players)
+            if play.hasForwardPass:
+                play.find_dropback_events()
+                play.process_coverage()
+
     def classify_defensive_coverage_shells(self):
         defensive_shells = {}
         defensive_shells['cover 1'] = 0
@@ -66,13 +73,20 @@ class Game:
 
         return defensive_shells
 
-    def classify_defensive_back_coverages(self, percentage=False):
+    def classify_defensive_back_coverages(self, percentage=False, positions=['CB','LB','S']):
         coverage_counts = {}
         coverage_names = ('zone','zone-deep','zone-over','man','man-over','blitz')
         
         for play in self.plays:
             
-            dbacks = play.return_defensive_backs() + play.return_linebackers()
+            dbacks = []
+            if 'CB' in positions:
+                dbacks += play.return_players_by_position('CB')
+            if 'LB' in positions:
+                dbacks += play.return_linebackers()
+            if 'S' in positions:
+                dbacks += play.return_safeties()
+            
             for dback in dbacks:
                 #print(f'Defensive Player Name: {dback.name}')
                 if dback.name is None:
@@ -88,7 +102,7 @@ class Game:
 
                 _coverage = dback.coverage
 
-                if _coverage is None:    # No coverage currently calculated on blitzes
+                if _coverage is None:    # No coverage currently calculated on sacks
                     continue
 
                 if _coverage == 'zone':

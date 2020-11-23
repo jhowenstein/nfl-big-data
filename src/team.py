@@ -20,6 +20,7 @@ class Team:
 
     def process_weeks(self, weeks):
         for key in weeks.keys():
+            print(key)
             try:
                 game = self.games[key]
             except:
