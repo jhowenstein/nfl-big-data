@@ -198,8 +198,11 @@ class Play:
 
         dt = .1
 
-        x = self.players['offense'][qb_key].tracking_data['x'].values
-        y = self.players['offense'][qb_key].tracking_data['y'].values
+        try:
+            x = self.players['offense'][qb_key].tracking_data['x'].values
+            y = self.players['offense'][qb_key].tracking_data['y'].values
+        except:
+            return
 
         dx = np.zeros(len(x))
         dy = np.zeros(len(y))
@@ -373,7 +376,8 @@ class Play:
                 lock_condition2 = db.distance_from_line(frame) < db_distance_from_line_threshold
                 lock_condition3 = abs(rc.distance_from_line(frame)) < rc_distance_from_line_threshold
                 if lock_condition1 and lock_condition2 and lock_condition3:
-                    print(f'    {db.name} ({db.position}-{db.number}) covering {rc.name} ({rc.position}-{rc.number})')
+                    if verbose:
+                        print(f'    {db.name} ({db.position}-{db.number}) covering {rc.name} ({rc.position}-{rc.number})')
                     db.lock(rc)
                     uncovered_top_receivers.remove(rc)
 
@@ -389,13 +393,14 @@ class Play:
                 lock_condition2 = db.distance_from_line(frame) < db_distance_from_line_threshold
                 lock_condition3 = abs(rc.distance_from_line(frame)) < rc_distance_from_line_threshold
                 if lock_condition1 and lock_condition2 and lock_condition3:
-                    print(f'    {db.name} ({db.position}-{db.number}) covering {rc.name} ({rc.position}-{rc.number})')
+                    if verbose:
+                        print(f'    {db.name} ({db.position}-{db.number}) covering {rc.name} ({rc.position}-{rc.number})')
                     db.lock(rc)
                     uncovered_bottom_receivers.remove(rc)
 
         self.check_locks(verbose=verbose)
 
-    def find_blitz(self):
+    def find_blitz(self, verbose=False):
         frame = self.events['pass_forward']
         dbacks = self.return_defensive_backs() + self.return_linebackers()
         for db in dbacks:
@@ -410,7 +415,8 @@ class Play:
                     db.unlock(rc)
                 
                 db.blitz_loc = (x,y)
-                print(f'    {db.name} ({db.position}-{db.number}) Bltizing')
+                if verbose:
+                    print(f'    {db.name} ({db.position}-{db.number}) Bltizing')
 
 
     def check_locks(self, verbose=False):
@@ -457,7 +463,8 @@ class Play:
 
             if delta_norm > threshold:
                 db.unlock(rc)
-                print(f'    {db.name} ({db.position}-{db.number}) - Zone on end movement criteria')
+                if verbose:
+                    print(f'    {db.name} ({db.position}-{db.number}) - Zone on end movement criteria')
                 continue
 
             for i in range(onethird, end):
@@ -470,7 +477,8 @@ class Play:
                 if pos_delta_norm >= pos_threshold:
                     if mov_delta_norm > threshold or pos_delta_norm > 2 * pos_threshold:
                         db.unlock(rc)
-                        print(f'    {db.name} ({db.position}-{db.number}) - Zone on separation criteria')
+                        if verbose:
+                            print(f'    {db.name} ({db.position}-{db.number}) - Zone on separation criteria')
                         if verbose:
                             print(f'      Frame: {i}: Positional Delta: {pos_delta_norm:.1f}  -  Movement Delta: {mov_delta_norm:.1f}')
                         break

@@ -43,3 +43,15 @@ def process_games(games, plays):
                                                         play_data=home_game_plays,location='away')
 
     return teams
+
+def aggregate_coverages(coverages=[]):
+    combined_coverages = {}
+    for coverage in coverages:
+        for key in coverage.keys():
+            if key not in combined_coverages:
+                combined_coverages[key] = coverage[key]
+            else:
+                for subkey in coverage[key].keys():
+                    combined_coverages[key][subkey] += coverage[key][subkey]
+    
+    return combined_coverages
