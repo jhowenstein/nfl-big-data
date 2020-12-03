@@ -11,6 +11,10 @@ import glob
 from .math_tools import orientation_array
 
 class Player:
+
+    movement_to_zone_threshold = -0.5
+    deep_zone_threshold = 10
+
     def __init__(self, nflId, player_data,tracking_data):
         self.nflId = nflId
         self.player_data = player_data
@@ -127,6 +131,12 @@ class Player:
             else:
                 print(f'Error! {self} has has more than one coverage type!')
         return _coverage
+
+    """
+    def isDeepZone(self):
+        if self.zone_loc is None:
+            return False
+    """
 
     def __str__(self):
         return self.name

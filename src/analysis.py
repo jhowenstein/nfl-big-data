@@ -44,14 +44,16 @@ def process_games(games, plays):
 
     return teams
 
-def aggregate_coverages(coverages=[]):
+def aggregate_coverages(coverages=[], game_count=True):
     combined_coverages = {}
     for coverage in coverages:
         for key in coverage.keys():
             if key not in combined_coverages:
                 combined_coverages[key] = coverage[key]
+                combined_coverages[key]['games played'] = 1
             else:
                 for subkey in coverage[key].keys():
                     combined_coverages[key][subkey] += coverage[key][subkey]
+                combined_coverages[key]['games played'] += 1
     
     return combined_coverages

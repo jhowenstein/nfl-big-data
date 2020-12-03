@@ -80,7 +80,11 @@ class Game:
 
         return defensive_shells
 
-    def classify_defensive_back_coverages(self, percentage=False, positions=['CB','LB','S']):
+    def classify_defensive_back_coverages(self, percentage=False, positions=['CB','LB','S'], useId=False):
+
+        movement_to_zone_threshold = -0.5
+        deep_zone_threshold = 10
+
         coverage_counts = {}
         coverage_names = ('zone','zone-deep','zone-over','man','man-over','blitz')
         
@@ -99,13 +103,18 @@ class Game:
                 if dback.name is None:
                     continue
 
-                if not dback.name in coverage_counts:
+                if useId == True:
+                    player_key = dback.nflId
+                else:
+                    player_key = dback.name
+
+                if not player_key in coverage_counts:
                     coverage_options = {}
                     coverage_options['snaps'] = 0
                     for coverage_name in coverage_names:
                         coverage_options[coverage_name] = 0
 
-                    coverage_counts[dback.name] = coverage_options
+                    coverage_counts[player_key] = coverage_options
 
                 _coverage = dback.coverage
 
@@ -114,10 +123,11 @@ class Game:
 
                 if _coverage == 'zone':
                     zone_depth = dback.zone_loc[0] - play.line_of_scrimmage
+                    movement_to_zone = dback.distance_from_line(play.events['pass_forward']) - dback.distance_from_line(play.events['ball_snap'])
                     if dback.safety_help is None:
                         _coverage += '-deep'
-                    if dback.safety_help == False and zone_depth > 10:
-                        _coverage += 'deep'
+                    if dback.safety_help == False and zone_depth > deep_zone_threshold and movement_to_zone > movement_to_zone_threshold:
+                        _coverage += '-deep'
                     elif dback.safety_help == True:
                         _coverage += '-over'
                     
@@ -125,8 +135,8 @@ class Game:
                     if dback.safety_help == 'True':
                         _coverage += '-over'
 
-                coverage_counts[dback.name][_coverage] += 1
-                coverage_counts[dback.name]['snaps'] += 1
+                coverage_counts[player_key][_coverage] += 1
+                coverage_counts[player_key]['snaps'] += 1
 
         if percentage:
             for counts in coverage_counts.values():
