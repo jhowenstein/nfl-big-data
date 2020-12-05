@@ -132,7 +132,7 @@ class Game:
                         _coverage += '-over'
                     
                 if _coverage == 'man':
-                    if dback.safety_help == 'True':
+                    if dback.safety_help == True:
                         _coverage += '-over'
 
                 coverage_counts[player_key][_coverage] += 1

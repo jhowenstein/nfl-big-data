@@ -36,3 +36,21 @@ class Team:
                 
                 game.plays.append(Play(play['playId'],play_data=play,player_tracking=player_tracking,
                                     fb_tracking=fb_tracking,defensive_team=game.location))
+
+    def process_game_plays(self, players):
+        for game in self.games.values():
+            game.process_plays(players)
+
+    def process_game_player_coverages(self, positions=['CB','LB','S'], useId=True):
+        game_coverages = {}
+
+        for key, game in self.games.items():
+            _coverage = game.classify_defensive_back_coverages(positions=positions,useId=useId)
+            game_coverages[key] = _coverage
+
+        self.game_coverages = game_coverages
+
+    def process_game_coverage_shells(self):
+        pass
+
+    
