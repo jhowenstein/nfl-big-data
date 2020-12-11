@@ -53,4 +53,18 @@ class Team:
     def process_game_coverage_shells(self):
         pass
 
+    def aggregate_coverages(self, game_count=True):
+        combined_coverages = {}
+        for game_coverage in self.game_coverages.values():
+            for key in game_coverage.keys():
+                if key not in combined_coverages:
+                    combined_coverages[key] = game_coverage[key]
+                    combined_coverages[key]['games played'] = 1
+                else:
+                    for subkey in game_coverage[key].keys():
+                        combined_coverages[key][subkey] += game_coverage[key][subkey]
+                    combined_coverages[key]['games played'] += 1
+        
+        self.aggregated_coverages = combined_coverages
+
     

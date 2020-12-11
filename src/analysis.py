@@ -118,3 +118,19 @@ class Analysis:
                                                             play_data=home_game_plays,location='away')
 
         self.teams = teams
+
+    def process_teams(self, teams=None):
+        if teams is None:
+            teams = self.teams.keys()
+
+        for key in teams:
+            team = self.teams[key]
+
+            team.process_weeks(self.weeks)
+            team.process_game_plays(self.players)
+            team.process_game_player_coverages()
+            team.aggregate_coverages()
+        
+        
+
+        
