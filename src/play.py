@@ -248,6 +248,9 @@ class Play:
         self.events['peak_dropback'] = peak_dropback + 1
         self.events['end_dropback'] = end_dropback + 1
 
+    def evaluate_outcome(self):
+        pass
+
     def process_coverage(self, verbose=False):
         self.find_initial_locks(verbose=verbose)
         self.find_blitz()
@@ -257,9 +260,12 @@ class Play:
     def return_players_by_position(self, position):
         result = []
         for side in ('offense','defense'):
-            for player in self.players[side].values():
-                if player.position == position:
-                    result.append(player)
+            try:
+                for player in self.players[side].values():
+                    if player.position == position:
+                        result.append(player)
+            except:
+                return result
         return result
 
     def return_player_by_number(self, number, side='defense'):
