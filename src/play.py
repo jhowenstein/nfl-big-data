@@ -44,6 +44,10 @@ class Play:
         return None    # If no outcome event is found
 
     @property
+    def description(self):
+        return self.play_data['playDescription'] 
+
+    @property
     def hasForwardPass(self):
         if 'pass_forward' in self.events:
             return True
@@ -521,6 +525,18 @@ class Play:
 
                 if abs(relative_pos) < safety_help_range:
                     dback.safety_help = True
+
+    def determine_target(self):
+        receivers = self.return_receivers()
+
+        for r in receivers:
+            if r.last_name in self.description:
+                self.target = r
+                return
+        
+        self.target = None     # No last name was found in the play description
+
+    ### Plotting tools
 
     def build_field(self, scale=1):
         sideline_to_hash = 68.75    # In feet

@@ -52,6 +52,10 @@ class Player:
         return self.player_data['birthDate']
 
     @property
+    def last_name(self):
+        return self.name.split()[1]
+
+    @property
     def hasLock(self):
         return len(self.locks) > 0
 
