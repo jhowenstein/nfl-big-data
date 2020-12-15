@@ -41,7 +41,7 @@ class Play:
         for event in self.events:
             if 'outcome' in event:
                 return event
-        return None    # If no outcome event is found
+        return None    # Return None if no outcome event is found
 
     @property
     def description(self):
@@ -58,6 +58,29 @@ class Play:
     def play_center(self):
         center = self.fb_tracking.loc[0,'y']
         return center
+
+    @property
+    def target_side(self):
+        FIELD_CENTER_THRESHOLD = 5 
+
+        if not self.hasForwardPass:
+            return None
+
+        outcome_frame = self.events[self.outcome_event]
+
+        # Potentially add criteria for the ball to pass the line or scrimmage
+
+        # Find y position of ball at the outcome event
+        fb_y = self.fb_tracking.loc[outcome_frame - 1]['y']
+
+        distance_from_center = fb_y - self.play_center
+
+        if abs(distance_from_center) < FIELD_CENTER_THRESHOLD:
+            return 'center'
+        elif distance_from_center > 0:
+            return 'top'
+        elif distance_from_center < 0:
+            return 'bottom'
 
     @property
     def defensive_personal_package(self):
@@ -535,6 +558,21 @@ class Play:
                 return
         
         self.target = None     # No last name was found in the play description
+
+    def determine_man_responsible_dbacks(self):
+        man_responsible = []
+        if self.target is None:
+            return None   # If no target, then no responsible defensive player
+
+        # Load Defensive Backs
+        dbacks = self.return_defensive_backs() + self.return_linebackers()
+
+        for db in dbacks:
+            if db.hasLock:
+                if db.locks[0] is self.target:
+                    man_responsible.append(db)
+
+        return man_responsible
 
     ### Plotting tools
 
