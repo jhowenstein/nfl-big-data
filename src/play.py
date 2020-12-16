@@ -44,6 +44,22 @@ class Play:
         return None    # Return None if no outcome event is found
 
     @property
+    def special_event(self):
+        desc = self.play_data['playDescription']
+
+        events = ['INTERCEPTION','FUMBLES','PENALTY','TOUCHDOWN']
+
+        special_events = []
+        for event in events:
+            if event in desc:
+                special_events.append(event)
+
+        if len(special_events) == 0:
+            return None
+        else:
+            return special_events
+
+    @property
     def description(self):
         return self.play_data['playDescription'] 
 
@@ -276,13 +292,15 @@ class Play:
         self.events['end_dropback'] = end_dropback + 1
 
     def evaluate_outcome(self):
-        pass
+        self.determine_target()
+        self.determine_man_responsible_dbacks()
 
     def process_coverage(self, verbose=False):
         self.find_initial_locks(verbose=verbose)
         self.find_blitz()
         self.find_zone_locations()
         self.determine_safety_help()
+        #self.evaluate_outcome()
 
     def return_players_by_position(self, position):
         result = []
@@ -572,7 +590,27 @@ class Play:
                 if db.locks[0] is self.target:
                     man_responsible.append(db)
 
-        return man_responsible
+        self.man_responsible_dbacks = man_responsible
+
+    def determine_zone_responsible_dbacks(self):
+        zone_responsible = []
+        if self.target is None:
+            return None
+
+        frame = self.events['pass_forward'] - 1
+        target_pos = self.target.location(frame)
+
+        # Load Defensive Backs
+        dbacks = self.return_defensive_backs() + self.return_linebackers()
+
+        for db in dbacks:
+            if db.zone_loc is not None:
+                delta = np.linalg.norm(target_pos - db.zone_loc)
+
+                if delta < db.zone_radius:
+                    zone_responsible.append(db)
+
+        self.zone_responsible_dbacks = zone_responsible
 
     ### Plotting tools
 

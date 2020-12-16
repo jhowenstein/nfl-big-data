@@ -136,6 +136,16 @@ class Player:
                 print(f'Error! {self} has has more than one coverage type!')
         return _coverage
 
+    @property
+    def zone_radius(self):
+        if self.position in ('FS','SS','S'):
+            radius = 7
+        elif self.position == 'CB':
+            radius = 5
+        elif self.position in ('LB','MLB','ILB','OLB'):
+            radius = 3
+        return radius
+
     """
     def isDeepZone(self):
         if self.zone_loc is None:
@@ -230,22 +240,13 @@ class Player:
         if self.zone_loc is None:
             return
 
-        radius=self.compute_zone_radius()
+        radius=self.zone_radius
 
         init_pos = self.location(1)  #TODO: Change this to position at ball snap
 
         ax.plot([init_pos[0],self.zone_loc[0]],[init_pos[1],self.zone_loc[1]],color='yellow',alpha=.7)
         circle = mpatches.Circle(tuple(self.zone_loc), radius, ec='none',fc='yellow',alpha=.5)
         ax.add_patch(circle)
-
-    def compute_zone_radius(self):
-        if self.position in ('FS','SS','S'):
-            radius = 7
-        elif self.position == 'CB':
-            radius = 5
-        elif self.position in ('LB','MLB','ILB','OLB'):
-            radius = 3
-        return radius
 
     def draw_coverage(self, ax):
         pass
