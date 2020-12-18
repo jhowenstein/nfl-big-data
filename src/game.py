@@ -53,16 +53,16 @@ class Game:
 
     def process_plays(self, players):
         for play in self.plays:
-            try:
-                play.process_players(players)
-                if play.hasForwardPass:
-                    play.find_dropback_events()
-                    play.process_coverage()
-            except:
-                print("Play Error")
-                print(f'Game ID: {self.gameId} - Play ID: {play.playId}')
-                print(play)
-                continue
+            #try:
+            play.process_players(players)
+            if play.hasForwardPass:
+                play.find_dropback_events()
+                play.process_coverage()
+            #except:
+            #    print("Play Error")
+            #    print(f'Game ID: {self.gameId} - Play ID: {play.playId}')
+            #    print(play)
+            #    continue
 
 
     def classify_defensive_coverage_shells(self):
@@ -145,6 +145,13 @@ class Game:
                     counts[coverage_name] = round(counts[coverage_name] / N,2)
 
         return coverage_counts
+
+    def calculate_offensive_production(self):
+        for play in self.plays:
+            print(play)
+            if play.special_event is not None:
+                print('Play Removed for ' + play.special_event[0])
+
 
 
         

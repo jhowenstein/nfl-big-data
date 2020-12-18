@@ -61,7 +61,52 @@ class Play:
 
     @property
     def description(self):
-        return self.play_data['playDescription'] 
+        return self.play_data['playDescription']
+
+    @property
+    def epa(self):
+        return self.play_data['epa']
+
+    @property
+    def isDPI(self):
+        return self.play_data['isDefensivePI']
+
+    @property
+    def time_to_pass(self):
+        if 'pass_forward' not in self.events:
+            return None
+
+        return (self.events['pass_forward'] - self.events['ball_snap']) / 10
+
+    @property
+    def pass_time(self):
+        if ('pass_forward' not in self.events) or ('pass_arrived' not in self.events):
+            return None
+
+        return (self.events['pass_arrived'] - self.events['pass_forward']) / 10
+
+    @property
+    def pass_distance(self):
+        precision = 3
+        if ('pass_forward' not in self.events) or ('pass_arrived' not in self.events):
+            return None
+
+        end_loc = self.fb_location(self.events['pass_arrived'])
+        start_loc = self.fb_location(self.events['pass_forward'])
+
+        dist = np.linalg.norm(end_loc - start_loc)
+
+        return round(dist, precision)
+
+    @property
+    def pass_velocity(self):
+        if ('pass_forward' not in self.events) or ('pass_arrived' not in self.events):
+            return None
+
+        start = self.events['pass_forward']
+        end = self.events['pass_arrived']
+        
+        return max(self.fb_tracking['s'][start:end].values)
 
     @property
     def hasForwardPass(self):
@@ -167,6 +212,9 @@ class Play:
                     return 'cover 2'
             else:
                 return 'cover 2'
+
+    def fb_location(self, frame):
+        return self.fb_tracking.loc[frame][['x','y']].values
 
     def return_deep_safeties(self):
         movement_to_zone_threshold = -0.5
@@ -294,13 +342,14 @@ class Play:
     def evaluate_outcome(self):
         self.determine_target()
         self.determine_man_responsible_dbacks()
+        self.determine_zone_responsible_dbacks()
 
     def process_coverage(self, verbose=False):
         self.find_initial_locks(verbose=verbose)
         self.find_blitz()
         self.find_zone_locations()
         self.determine_safety_help()
-        #self.evaluate_outcome()
+        self.evaluate_outcome()
 
     def return_players_by_position(self, position):
         result = []
@@ -454,20 +503,28 @@ class Play:
     def find_blitz(self, verbose=False):
         frame = self.events['pass_forward']
         dbacks = self.return_defensive_backs() + self.return_linebackers()
-        for db in dbacks:
-            x,y = db.location(frame)
 
-            dx = x - self.line_of_scrimmage
+        try:
+            for db in dbacks:
+                x,y = db.location(frame)
 
-            if dx < 0:
-                # Player is behind line of scrimmage at ball release. Classify as blitz
-                if db.hasLock:
-                    rc = db.locks[0]
-                    db.unlock(rc)
-                
-                db.blitz_loc = (x,y)
-                if verbose:
-                    print(f'    {db.name} ({db.position}-{db.number}) Bltizing')
+                dx = x - self.line_of_scrimmage
+
+                if dx < 0:
+                    # Player is behind line of scrimmage at ball release. Classify as blitz
+                    if db.hasLock:
+                        rc = db.locks[0]
+                        db.unlock(rc)
+                    
+                    db.blitz_loc = (x,y)
+                    if verbose:
+                        print(f'    {db.name} ({db.position}-{db.number}) Bltizing')
+        except:
+            print(frame)
+            print(db.tracking_data.shape)
+            print(db.nflId)
+            print(self.playId)
+            print(self.play_data)
 
 
     def check_locks(self, verbose=False):

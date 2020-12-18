@@ -49,7 +49,7 @@ class Analysis:
                 self.weeks[name] = pd.read_csv(os.path.join(self.basepath,data_folder,name+'-processed.csv'))
         elif isinstance(weeks, list):
             for i in weeks:
-                name = f'week{i+1}'
+                name = f'week{i}'
                 self.weeks[name] = pd.read_csv(os.path.join(self.basepath,data_folder,name+'-processed.csv'))
         elif weeks == 'All':
             for i in range(17):
