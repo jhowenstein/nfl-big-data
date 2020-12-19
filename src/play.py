@@ -232,7 +232,10 @@ class Play:
         center_safety = None
 
         for s in safeties:
-            movement_to_zone = s.distance_from_line(self.events['pass_forward']) - s.distance_from_line(self.events['ball_snap'])
+            try:
+                movement_to_zone = s.distance_from_line(self.events['pass_forward']) - s.distance_from_line(self.events['ball_snap'])
+            except:
+                continue
 
             if s.zone_coverage and s.distance_from_line(self.events['pass_forward']) > deep_zone_threshold and movement_to_zone > movement_to_zone_threshold:
                 distance_from_center = s.distance_from_center(self.events['pass_forward'])
@@ -444,10 +447,13 @@ class Play:
         top_dbacks = []
         bottom_dbacks = []
         for db in dbacks:
-            if db.distance_from_center(frame) > 0:
-                top_dbacks.append(db)
-            else:
-                bottom_dbacks.append(db)
+            try:
+                if db.distance_from_center(frame) > 0:
+                    top_dbacks.append(db)
+                else:
+                    bottom_dbacks.append(db)
+            except:
+                continue
 
         # Separate Receivers by Top/Bottom
         uncovered_top_receivers = []
@@ -504,27 +510,32 @@ class Play:
         frame = self.events['pass_forward']
         dbacks = self.return_defensive_backs() + self.return_linebackers()
 
-        try:
-            for db in dbacks:
+        #try:
+        for db in dbacks:
+
+            if frame > db.tracking_data.shape[0]:
+                x,y = db.location(db.tracking_data.shape[0])
+            else:
                 x,y = db.location(frame)
 
-                dx = x - self.line_of_scrimmage
+            dx = x - self.line_of_scrimmage
 
-                if dx < 0:
-                    # Player is behind line of scrimmage at ball release. Classify as blitz
-                    if db.hasLock:
-                        rc = db.locks[0]
-                        db.unlock(rc)
-                    
-                    db.blitz_loc = (x,y)
-                    if verbose:
-                        print(f'    {db.name} ({db.position}-{db.number}) Bltizing')
+            if dx < 0:
+                # Player is behind line of scrimmage at ball release. Classify as blitz
+                if db.hasLock:
+                    rc = db.locks[0]
+                    db.unlock(rc)
+                
+                db.blitz_loc = (x,y)
+                if verbose:
+                    print(f'    {db.name} ({db.position}-{db.number}) Bltizing')
+        '''
         except:
             print(frame)
             print(db.tracking_data.shape)
             print(db.nflId)
             print(self.playId)
-            print(self.play_data)
+            print(self.play_data)'''
 
 
     def check_locks(self, verbose=False):
@@ -600,7 +611,10 @@ class Play:
 
         for db in dbacks:
             if not db.hasLock and not db.blitzing:
-                db.zone_loc = db.location(frame)
+                if frame > db.tracking_data.shape[0]:
+                    db.zone_loc = db.location(db.tracking_data.shape[0])
+                else:
+                    db.zone_loc = db.location(frame)
 
     def determine_safety_help(self):
         safety_help_range = 10
@@ -619,7 +633,10 @@ class Play:
                 if safety is None:
                     continue
 
-                relative_pos = safety.distance_from_center(self.events['pass_forward']) - dback.distance_from_center(self.events['pass_forward'])
+                try:
+                    relative_pos = safety.distance_from_center(self.events['pass_forward']) - dback.distance_from_center(self.events['pass_forward'])
+                except:
+                    continue
 
                 if abs(relative_pos) < safety_help_range:
                     dback.safety_help = True

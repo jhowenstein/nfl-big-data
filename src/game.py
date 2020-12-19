@@ -53,16 +53,16 @@ class Game:
 
     def process_plays(self, players):
         for play in self.plays:
-            #try:
-            play.process_players(players)
-            if play.hasForwardPass:
-                play.find_dropback_events()
-                play.process_coverage()
-            #except:
-            #    print("Play Error")
-            #    print(f'Game ID: {self.gameId} - Play ID: {play.playId}')
-            #    print(play)
-            #    continue
+            try:
+                play.process_players(players)
+                if play.hasForwardPass:
+                    play.find_dropback_events()
+                    play.process_coverage()
+            except:
+                print("Play Error")
+                print(f'Game ID: {self.gameId} - Play ID: {play.playId}')
+                print(play)
+                continue
 
 
     def classify_defensive_coverage_shells(self):
@@ -123,7 +123,12 @@ class Game:
 
                 if _coverage == 'zone':
                     zone_depth = dback.zone_loc[0] - play.line_of_scrimmage
-                    movement_to_zone = dback.distance_from_line(play.events['pass_forward']) - dback.distance_from_line(play.events['ball_snap'])
+                    
+                    try:
+                        movement_to_zone = dback.distance_from_line(play.events['pass_forward']) - dback.distance_from_line(play.events['ball_snap'])
+                    except:
+                        continue
+
                     if dback.safety_help is None:
                         _coverage += '-deep'
                     if dback.safety_help == False and zone_depth > deep_zone_threshold and movement_to_zone > movement_to_zone_threshold:
