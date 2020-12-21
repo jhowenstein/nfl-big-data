@@ -346,6 +346,7 @@ class Play:
         self.determine_target()
         self.determine_man_responsible_dbacks()
         self.determine_zone_responsible_dbacks()
+        self.determine_target_coverage()
 
     def process_coverage(self, verbose=False):
         self.find_initial_locks(verbose=verbose)
@@ -510,7 +511,6 @@ class Play:
         frame = self.events['pass_forward']
         dbacks = self.return_defensive_backs() + self.return_linebackers()
 
-        #try:
         for db in dbacks:
 
             if frame > db.tracking_data.shape[0]:
@@ -529,13 +529,6 @@ class Play:
                 db.blitz_loc = (x,y)
                 if verbose:
                     print(f'    {db.name} ({db.position}-{db.number}) Bltizing')
-        '''
-        except:
-            print(frame)
-            print(db.tracking_data.shape)
-            print(db.nflId)
-            print(self.playId)
-            print(self.play_data)'''
 
 
     def check_locks(self, verbose=False):
@@ -685,6 +678,22 @@ class Play:
                     zone_responsible.append(db)
 
         self.zone_responsible_dbacks = zone_responsible
+
+    def determine_target_coverage(self):
+        if self.target is None:
+            return None
+
+        target_coverage = []
+
+        if len(self.man_responsible_dbacks) > 0:
+            for db in self.man_responsible_dbacks:
+                target_coverage.append('man')
+            
+        if len(self.zone_responsible_dbacks) > 0:
+            for db in self.zone_responsible_dbacks:
+                target_coverage.append('zone')
+            
+        self.target_coverage = target_coverage
 
     ### Plotting tools
 
