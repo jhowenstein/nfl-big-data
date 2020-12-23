@@ -181,7 +181,7 @@ class Play:
                 deep_safety_count += 1
 
         if deep_safety_count == 0:
-            return 'cover 1'
+            return 'cover 0'
 
         top_corner, bottom_corner = self.return_outside_corners()
 

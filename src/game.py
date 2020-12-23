@@ -67,6 +67,7 @@ class Game:
 
     def classify_defensive_coverage_shells(self):
         defensive_shells = {}
+        defensive_shells['cover 0'] = 0
         defensive_shells['cover 1'] = 0
         defensive_shells['cover 2'] = 0
         defensive_shells['cover 3'] = 0
@@ -123,7 +124,7 @@ class Game:
 
                 if _coverage == 'zone':
                     zone_depth = dback.zone_loc[0] - play.line_of_scrimmage
-                    
+
                     try:
                         movement_to_zone = dback.distance_from_line(play.events['pass_forward']) - dback.distance_from_line(play.events['ball_snap'])
                     except:
