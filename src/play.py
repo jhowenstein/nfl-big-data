@@ -742,7 +742,7 @@ class Play:
 
         return marker, s
 
-    def plot_play(self, scale=1, markers=None):
+    def plot_play(self, scale=1, markers=None, show_coverage=False):
         fig,ax = self.build_field(scale=scale)
 
         ax.axvline(self.line_of_scrimmage,color='y',alpha=.5,zorder=3)
@@ -779,6 +779,13 @@ class Play:
         ax.plot(self.fb_tracking['x'].values[start:end],
                 self.fb_tracking['y'].values[start:end],
                 color='brown',alpha=.7,zorder=3)
+
+        if show_coverage:
+            for player in self.players['defense'].values():
+                index = self.events['ball_snap']
+                player.draw_lock(ax,index)
+                player.draw_blitz(ax)
+                player.draw_zone(ax)
 
         plt.show()
 

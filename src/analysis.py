@@ -22,6 +22,30 @@ def aggregate_coverages(coverages=[], game_count=True):
     
     return combined_coverages
 
+def sort_plays_by_result(plays):
+    completed = []
+    incompleted = []
+    intercepted = []
+    other = []
+    
+    for play in plays:
+        if play.play_data['passResult'] == 'C':
+            completed.append(play)
+        elif play.play_data['passResult'] == 'I':
+            incompleted.append(play)
+        elif play.play_data['passResult'] == 'IN':
+            intercepted.append(play)
+        else:
+            other.append(play)
+            
+    sorted_plays = {}
+    sorted_plays['completed'] = completed
+    sorted_plays['incompleted'] = incompleted
+    sorted_plays['intercepted'] = intercepted
+    sorted_plays['other'] = other
+            
+    return sorted_plays
+
 class Analysis:
     def __init__(self, basepath=''):
         self.basepath = basepath
@@ -94,6 +118,47 @@ class Analysis:
             team.process_game_plays(self.players)
             team.process_game_player_coverages()
             team.aggregate_coverages()
+
+    def return_plays(self, teams=None, weeks=None, defensive_coverage=None, target_coverage=None):
+        if teams is None:
+            teams = self.teams.values()
+            
+        if weeks is None:
+            weeks = np.arange(1,18)
+        
+        _plays = []
+        for team in teams:
+            for week in weeks:
+                week_key = f'week{week}'
+                if week_key in team.games:
+                    game = team.games[week_key]
+                    for play in game.plays:
+                        
+                        if not play.hasForwardPass:
+                            continue
+                            
+                        try:
+                            if play.target is None:
+                                continue
+                        except:
+                            print(play)
+                            continue
+                                
+                        if defensive_coverage is None and target_coverage is None:
+                            _plays.append(play)
+                            continue
+                            
+                        if defensive_coverage is not None:
+                            if play.defensive_coverage_shell == defensive_coverage:
+                                _plays.append(play)
+                                continue
+                                
+                        if target_coverage is not None:    
+                            if len(play.target_coverage) == 1 and play.target_coverage[0] == target_coverage:
+                                _plays.append(play)
+                                continue
+                    
+        return _plays
         
         
 
