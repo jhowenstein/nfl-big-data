@@ -67,4 +67,22 @@ class Team:
         
         self.aggregated_coverages = combined_coverages
 
+    def calculate_opponent_offensive_production(self, useId=False):
+        metric_keys = ['snaps','targets','epa']
+        offensive_production = {}
+        for game in self.games.values():
+            game_production = game.calculate_offensive_production(useId=useId)
+
+            for key in game_production.keys():
+                if key not in offensive_production:
+                    offensive_production[key] = game_production[key]
+                    offensive_production[key]['games played'] = 1
+                    offensive_production[key]['team'] = game.opponent
+                else:
+                    for subkey in metric_keys:
+                        offensive_production[key][subkey] += game_production[key][subkey]
+                    offensive_production[key]['games played'] += 1
+
+        return offensive_production  
+
     

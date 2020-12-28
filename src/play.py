@@ -355,9 +355,15 @@ class Play:
         self.determine_safety_help()
         self.evaluate_outcome()
 
-    def return_players_by_position(self, position):
+    def return_players_by_position(self, position, side=None):
         result = []
-        for side in ('offense','defense'):
+
+        if side is None:
+            sides = ('offense','defense')
+        else:
+            sides = [side]
+
+        for side in sides:
             try:
                 for player in self.players[side].values():
                     if player.position == position:
@@ -376,34 +382,34 @@ class Play:
         positions = ('WR','TE','RB','HB')
         _players = []
         for pos in positions:
-            _players += self.return_players_by_position(pos)
+            _players += self.return_players_by_position(pos, side='offense')
         return _players
 
     def return_defensive_backs(self):
         positions = ('CB','FS','SS','S')
         _players = []
         for pos in positions:
-            _players += self.return_players_by_position(pos)
+            _players += self.return_players_by_position(pos, side='defense')
         return _players
 
     def return_safeties(self):
         positions = ('FS','SS','S')
         _players = []
         for pos in positions:
-            _players += self.return_players_by_position(pos)
+            _players += self.return_players_by_position(pos, side='defense')
         return _players
 
     def return_linebackers(self):
         positions = ('LB','MLB','ILB','OLB')
         _players = []
         for pos in positions:
-            _players += self.return_players_by_position(pos)
+            _players += self.return_players_by_position(pos, side='defense')
         return _players
 
     def return_outside_corners(self):
         frame = self.events['ball_snap']
 
-        corners = self.return_players_by_position('CB')
+        corners = self.return_players_by_position('CB', side='defense')
 
         top_corners = []
         bottom_corners = []

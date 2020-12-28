@@ -63,7 +63,7 @@ class Analysis:
 
         self.load_weeks(weeks=weeks, data_folder=data_folder)
 
-    def load_weeks(self, weeks, data_folder='data'):
+    def load_weeks(self, weeks='All', data_folder='data'):
         if weeks is None:
             return
 
@@ -159,6 +159,23 @@ class Analysis:
                                 continue
                     
         return _plays
+
+    def calculate_offensive_production(self, useId=False):
+        metric_keys = ['snaps','targets','epa','games played']
+        offensive_production = {}
+        for team in self.teams.values():
+            print(team.abbr)
+            opponent_production = team.calculate_opponent_offensive_production(useId=useId)
+
+            for key in opponent_production.keys():
+                if key not in offensive_production:
+                    offensive_production[key] = opponent_production[key]
+                else:
+                    for subkey in metric_keys:
+                        offensive_production[key][subkey] += opponent_production[key][subkey]
+
+        df = pd.DataFrame.from_dict(offensive_production,orient='index')    
+        return df
         
         
 

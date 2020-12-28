@@ -152,12 +152,53 @@ class Game:
 
         return coverage_counts
 
-    def calculate_offensive_production(self):
+    def calculate_offensive_production(self, useId=False, verbose=False):
+        i = 1
+        receiver_data = {}
         for play in self.plays:
-            print(play)
+            #print(play)
             if play.special_event is not None:
-                print('Play Removed for ' + play.special_event[0])
+                if verbose:
+                    print(f'Play {i} Removed for ' + play.special_event[0])
 
+            receivers = play.return_receivers()
+
+            if verbose:
+                print(f'Play {i}')
+
+            for rc in receivers:
+
+                if rc.name is None:
+                    continue
+
+                if useId == True:
+                    player_key = rc.nflId
+                else:
+                    player_key = rc.name
+
+                if not player_key in receiver_data:
+                    player_data = {}
+                    player_data['snaps'] = 0
+                    player_data['targets'] = 0
+                    player_data['epa'] = 0
+                    #player_data['target epa'] = 0
+
+                    receiver_data[player_key] = player_data
+
+                receiver_data[player_key]['snaps'] += 1
+
+                try:
+                    if rc is play.target:
+                        receiver_data[player_key]['targets'] += 1
+                        receiver_data[player_key]['epa'] += play.epa
+                except:
+                    if verbose:
+                        print(play)
+                    continue
+
+                i += 1
+
+        return receiver_data
 
 
         
