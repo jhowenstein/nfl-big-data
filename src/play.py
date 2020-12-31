@@ -65,7 +65,8 @@ class Play:
 
     @property
     def epa(self):
-        return self.play_data['epa']
+        precision = 6
+        return round(self.play_data['epa'], precision)
 
     @property
     def isDPI(self):
