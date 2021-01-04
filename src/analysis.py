@@ -80,6 +80,9 @@ class Analysis:
                 name = f'week{i+1}'
                 self.weeks[name] = pd.read_csv(os.path.join(self.basepath,data_folder,name+'-processed.csv'))
 
+    def load_offensive_production(self, data_folder='calculated-data'):
+        self.offensive_production = pd.read_csv(os.path.join(self.basepath,data_folder,'offensive production.csv'),index_col=0)
+
     def process_games(self):
         games = self.games
         plays = self.plays
@@ -176,7 +179,149 @@ class Analysis:
 
         df = pd.DataFrame.from_dict(offensive_production,orient='index')    
         return df
-        
-        
 
+    def calculate_man_production_reduction(self, output=True, output_folder='calculated-data'):
+        plays = self.return_plays(target_coverage='man')
         
+        results = []
+        for play in plays:
+            db = play.man_responsible_dbacks[0]
+            rc = play.target
+            rc_production = self.offensive_production.loc[rc.nflId]
+            epa_delta = play.epa - rc_production['epa/target']
+            
+            res = [db.nflId, db.name, rc.nflId, rc.name, play.epa, rc_production['epa/target'], epa_delta]
+            
+            results.append(res)
+
+        columns = ['db nflId', 'db name','rc nflId', 'rc name', 'play epa', 'expected epa', 'epa delta']
+        results = pd.DataFrame(results, columns=columns).sort_values('play epa')
+
+        totals = []
+
+        for _id in results['db nflId'].unique():
+            db_df = results[results['db nflId'] == _id]
+            db_name = db_df['db name'].values[0]
+            
+            nPlays = db_df.shape[0]
+            
+            db_epa_total = db_df['epa delta'].sum()
+            db_epa_mean = db_df['epa delta'].mean()
+                
+            totals.append([_id,db_name, nPlays, db_epa_total, db_epa_mean])
+
+        totals = pd.DataFrame(totals,columns=['id','name','man coverage count','total man delta epa','mean man delta epa'])
+        totals = totals.sort_values('total man delta epa')
+
+        if output:
+            results.to_csv(os.path.join(self.basepath,output_folder,'man play results.csv'))
+            totals.to_csv(os.path.join(self.basepath,output_folder,'man coverage production reduction.csv'))
+        else:
+            return results, totals
+
+    def calculate_zone_production_reduction(self, output=True, output_folder='calculated-data'):
+        plays = self.return_plays(target_coverage='zone')
+
+        results = []
+        for play in plays:
+            
+            if len(play.zone_responsible_dbacks) > 1:
+                print('Double Coverage')
+                continue
+                
+            db = play.zone_responsible_dbacks[0]
+            rc = play.target
+            rc_production = self.offensive_production.loc[rc.nflId]
+            epa_delta = play.epa - rc_production['epa/target']
+            
+            res = [db.nflId, db.name, rc.nflId, rc.name, play.epa, rc_production['epa/target'], epa_delta]
+            
+            results.append(res)
+
+        columns = ['db nflId', 'db name','rc nflId', 'rc name', 'play epa', 'expected epa', 'epa delta']
+        results = pd.DataFrame(results, columns=columns).sort_values('play epa')
+
+        totals = []
+
+        for _id in results['db nflId'].unique():
+            db_df = results[results['db nflId'] == _id]
+            db_name = db_df['db name'].values[0]
+            
+            nPlays = db_df.shape[0]
+            
+            db_epa_total = db_df['epa delta'].sum()
+            db_epa_mean = db_df['epa delta'].mean()
+                
+            totals.append([_id,db_name, nPlays, db_epa_total, db_epa_mean])
+
+        totals = pd.DataFrame(totals,columns=['id','name','zone coverage count','total zone delta epa','mean zone delta epa'])
+        totals = totals.sort_values('total zone delta epa')
+
+        if output:
+            results.to_csv(os.path.join(self.basepath,output_folder,'zone play results.csv'))
+            totals.to_csv(os.path.join(self.basepath,output_folder,'zone coverage production reduction.csv'))
+        else:
+            return results, totals
+
+    def targeted_defensive_player_coverage_analysis(self, output=True, output_folder='calculate-data'):
+        plays = self.return_plays()
+
+        output = {}
+        for play in plays:
+            
+            deep_safeties = [play.return_deep_safeties()]
+            
+            for db in play.responsible_dbacks:
+                
+                coverage = db.coverage
+                if db in deep_safeties:
+                    coverage += '-deep'
+                elif db.safety_help:
+                    coverage += '-over'
+                            
+                if db.nflId not in output:
+                    output[db.nflId] = {}
+                    output[db.nflId]['targets'] = 1
+                    output[db.nflId][coverage] = 1
+                    output[db.nflId][coverage + ' epa'] = play.epa
+                else:
+                    output[db.nflId]['targets'] += 1
+                    
+                    if coverage in output[db.nflId]:
+                        output[db.nflId][coverage] += 1
+                        output[db.nflId][coverage + ' epa'] += play.epa
+                    else:
+                        output[db.nflId][coverage] = 1
+                        output[db.nflId][coverage + ' epa'] = play.epa
+
+        df = pd.DataFrame.from_dict(output,orient='index')
+
+        if output:
+            df.to_csv(os.path.join(self.basepath,output_folder,'targeted defensive player epa analysis.csv'))
+        else:
+            return df
+
+    def player_season_coverage_analysis(self, snap_threshold=0, output=True, output_folder='calculate-data'):
+        dfs = []
+        for team in self.teams.values():
+            df = pd.DataFrame.from_dict(team.aggregated_coverages, orient='index')
+            df['Team'] = team.abbr
+            dfs.append(df)
+
+        df = pd.concat(dfs)
+
+        df = pd.merge(self.players[['displayName','position']],df,left_index=True,right_index=True)
+
+        df = df[df['snaps'] > snap_threshold]
+
+        coverage_names = ('zone','zone-deep','zone-over','man','man-over','blitz')
+        for key in coverage_names:
+            df[f'{key} %'] = ((df[key] / df['snaps']) * 100).round(1)
+
+        df['zone-total'] = df['zone'] + df['zone-deep'] + df['zone-over']
+        df['man-total'] = df['man'] + df['man-over']
+
+        if output:
+            df.to_csv(os.path.join(self.basepath,output_folder,'player season coverages.csv'))
+        else:
+            return df

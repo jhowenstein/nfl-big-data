@@ -98,6 +98,14 @@ class Player:
         return self.tracking_data['dir'].values
 
     @property
+    def max_speed(self):
+        return self.tracking_data['s'].values.max()
+
+    @property
+    def max_accel(self):
+        return self.tracking_data['a'].values.max()
+
+    @property
     def blitzing(self):
         if self.blitz_loc is not None:
             return True

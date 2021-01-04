@@ -117,6 +117,17 @@ class Play:
             return False
 
     @property
+    def backfield_pass(self):
+        frame = self.events['pass_forward']
+
+        dist_from_line = self.target.distance_from_line(frame)
+
+        if dist_from_line < 0:
+            return True
+        else:
+            return False
+
+    @property
     def play_center(self):
         center = self.fb_tracking.loc[0,'y']
         return center
@@ -220,6 +231,7 @@ class Play:
     def return_deep_safeties(self):
         movement_to_zone_threshold = -0.5
         deep_zone_threshold = 10
+        center_distance_threshold = 5
 
         safeties = self.return_safeties()
 
@@ -241,7 +253,7 @@ class Play:
             if s.zone_coverage and s.distance_from_line(self.events['pass_forward']) > deep_zone_threshold and movement_to_zone > movement_to_zone_threshold:
                 distance_from_center = s.distance_from_center(self.events['pass_forward'])
 
-                if abs(distance_from_center) < 5 and center_safety is None:
+                if abs(distance_from_center) < center_distance_threshold and center_safety is None:
                     center_safety = s
                 elif s.side(self.events['pass_forward']) == 'top' and top_safety is None:
                     top_safety = s
@@ -347,6 +359,7 @@ class Play:
         self.determine_target()
         self.determine_man_responsible_dbacks()
         self.determine_zone_responsible_dbacks()
+        #self.determine_responsible_dbacks()
         self.determine_target_coverage()
 
     def process_coverage(self, verbose=False):
@@ -518,17 +531,38 @@ class Play:
         frame = self.events['pass_forward']
         dbacks = self.return_defensive_backs() + self.return_linebackers()
 
+        try:
+            qb = self.return_players_by_position(position='QB',side='offense')[0]
+        except:
+            return
+
         for db in dbacks:
 
             if frame > db.tracking_data.shape[0]:
                 x,y = db.location(db.tracking_data.shape[0])
+                distance_from_center = db.distance_from_center(db.tracking_data.shape[0])
+                qb_distance_from_center = qb.distance_from_center(db.tracking_data.shape[0])
+                _ , qb_dy, _ = db.distance_to_player(qb, db.tracking_data.shape[0])
             else:
                 x,y = db.location(frame)
+                distance_from_center = db.distance_from_center(frame)
+                qb_distance_from_center = qb.distance_from_center(frame)
+                _ , qb_dy, _ = db.distance_to_player(qb, frame)
 
             dx = x - self.line_of_scrimmage
 
-            if dx < 0:
-                # Player is behind line of scrimmage at ball release. Classify as blitz
+            # Player behind line of scrimmage at ball release
+            condition_1 = dx < 0
+
+            # Player within "center zone" (3 yards)
+            condition_2a = (abs(distance_from_center) < 3 and abs(qb_distance_from_center) < 3)
+
+            # Player with 5 yards of qb
+            condition_2b = abs(qb_dy) < 5
+
+            if condition_1 and (condition_2a or condition_2b):
+                                
+                # Player is behind line of scrimmage at ball release and meets second criteria. Classify as blitz
                 if db.hasLock:
                     rc = db.locks[0]
                     db.unlock(rc)
@@ -536,6 +570,9 @@ class Play:
                 db.blitz_loc = (x,y)
                 if verbose:
                     print(f'    {db.name} ({db.position}-{db.number}) Bltizing')
+                    print(f'        Condition 1: {condition_1}')
+                    print(f'        Condition 2a: {condition_2a}')
+                    print(f'        Condition 2b: {condition_2b}')
 
 
     def check_locks(self, verbose=False):
@@ -685,6 +722,9 @@ class Play:
                     zone_responsible.append(db)
 
         self.zone_responsible_dbacks = zone_responsible
+
+    def determine_responsible_dbacks(self):
+        self.responsible_dbacks = self.man_responsible_dbacks + self.zone_responsible_dbacks
 
     def determine_target_coverage(self):
         if self.target is None:
