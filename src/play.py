@@ -369,6 +369,13 @@ class Play:
         self.determine_safety_help()
         self.evaluate_outcome()
 
+    def return_defensive_players(self):
+        result = []
+        for player in self.players['defense'].values():
+            result.append(player)
+
+        return result
+
     def return_players_by_position(self, position, side=None):
         result = []
 

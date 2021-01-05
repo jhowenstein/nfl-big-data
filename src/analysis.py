@@ -157,7 +157,7 @@ class Analysis:
                                 continue
                                 
                         if target_coverage is not None:    
-                            if len(play.target_coverage) == 1 and play.target_coverage[0] == target_coverage:
+                            if target_coverage in play.target_coverage:
                                 _plays.append(play)
                                 continue
                     
@@ -210,7 +210,7 @@ class Analysis:
                 
             totals.append([_id,db_name, nPlays, db_epa_total, db_epa_mean])
 
-        totals = pd.DataFrame(totals,columns=['id','name','man coverage count','total man delta epa','mean man delta epa'])
+        totals = pd.DataFrame(totals,columns=['id','name','man targeted coverage count','total man delta epa','mean man delta epa'])
         totals = totals.sort_values('total man delta epa')
 
         if output:
@@ -254,7 +254,7 @@ class Analysis:
                 
             totals.append([_id,db_name, nPlays, db_epa_total, db_epa_mean])
 
-        totals = pd.DataFrame(totals,columns=['id','name','zone coverage count','total zone delta epa','mean zone delta epa'])
+        totals = pd.DataFrame(totals,columns=['id','name','zone targeted coverage count','total zone delta epa','mean zone delta epa'])
         totals = totals.sort_values('total zone delta epa')
 
         if output:
@@ -263,12 +263,14 @@ class Analysis:
         else:
             return results, totals
 
-    def targeted_defensive_player_coverage_analysis(self, output=True, output_folder='calculate-data'):
+    def targeted_defensive_player_coverage_analysis(self, output=True, output_folder='calculated-data'):
         plays = self.return_plays()
 
-        output = {}
+        results = {}
         for play in plays:
             
+            play.determine_responsible_dbacks()
+
             deep_safeties = [play.return_deep_safeties()]
             
             for db in play.responsible_dbacks:
@@ -279,29 +281,29 @@ class Analysis:
                 elif db.safety_help:
                     coverage += '-over'
                             
-                if db.nflId not in output:
-                    output[db.nflId] = {}
-                    output[db.nflId]['targets'] = 1
-                    output[db.nflId][coverage] = 1
-                    output[db.nflId][coverage + ' epa'] = play.epa
+                if db.nflId not in results:
+                    results[db.nflId] = {}
+                    results[db.nflId]['targets'] = 1
+                    results[db.nflId][coverage + ' targets'] = 1
+                    results[db.nflId][coverage + ' targets epa'] = play.epa
                 else:
-                    output[db.nflId]['targets'] += 1
+                    results[db.nflId]['targets'] += 1
                     
-                    if coverage in output[db.nflId]:
-                        output[db.nflId][coverage] += 1
-                        output[db.nflId][coverage + ' epa'] += play.epa
+                    if coverage + ' targets' in results[db.nflId]:
+                        results[db.nflId][coverage + ' targets'] += 1
+                        results[db.nflId][coverage + ' targets epa'] += play.epa
                     else:
-                        output[db.nflId][coverage] = 1
-                        output[db.nflId][coverage + ' epa'] = play.epa
+                        results[db.nflId][coverage + ' targets'] = 1
+                        results[db.nflId][coverage + ' targets epa'] = play.epa
 
-        df = pd.DataFrame.from_dict(output,orient='index')
+        df = pd.DataFrame.from_dict(results,orient='index')
 
         if output:
             df.to_csv(os.path.join(self.basepath,output_folder,'targeted defensive player epa analysis.csv'))
         else:
             return df
 
-    def player_season_coverage_analysis(self, snap_threshold=0, output=True, output_folder='calculate-data'):
+    def player_season_coverage_analysis(self, snap_threshold=0, output=True, output_folder='calculated-data'):
         dfs = []
         for team in self.teams.values():
             df = pd.DataFrame.from_dict(team.aggregated_coverages, orient='index')
@@ -323,5 +325,63 @@ class Analysis:
 
         if output:
             df.to_csv(os.path.join(self.basepath,output_folder,'player season coverages.csv'))
+        else:
+            return df
+
+    def non_targeted_man_coverage_epa_analysis(self, offensive_snap_threshold=100, output=True, output_folder='calculated-data'):
+        plays = self.return_plays()
+
+        op = self.offensive_production
+        # Include only players above snap threshold
+        op = op[op['snaps'] > offensive_snap_threshold]
+        # Include only players with positive epa/snap
+        op = op[op['epa/snap'] > 0]
+
+        results = {}
+        for play in plays:
+
+            players = play.return_defensive_players()
+
+            for player in players:
+
+                if player.hasLock:
+
+                    lock = player.locks[0]
+                    if lock is not play.target:
+                        try:
+                            epa = op.loc[lock.nflId]['epa/snap']
+                        except:
+                            epa = 0
+
+                        if player.nflId not in results:
+                            results[player.nflId] = {}
+                            results[player.nflId]['non targets'] = 1
+                            results[player.nflId]['non targets epa'] = epa
+
+                            if not player.safety_help:
+                                results[player.nflId]['non targets - iso'] = 1
+                                results[player.nflId]['non targets epa - iso'] = epa
+                                results[player.nflId]['non targets - over'] = 0
+                                results[player.nflId]['non targets epa - over'] = 0
+                            else:
+                                results[player.nflId]['non targets - iso'] = 0
+                                results[player.nflId]['non targets epa - iso'] = 0
+                                results[player.nflId]['non targets - over'] = 1
+                                results[player.nflId]['non targets epa - over'] = epa
+                        else:
+                            results[player.nflId]['non targets'] += 1
+                            results[player.nflId]['non targets epa'] += epa
+
+                            if not player.safety_help:
+                                results[player.nflId]['non targets - iso'] += 1
+                                results[player.nflId]['non targets epa - iso'] += epa
+                            else:
+                                results[player.nflId]['non targets - over'] += 1
+                                results[player.nflId]['non targets epa - over'] += epa
+        
+        df = pd.DataFrame.from_dict(results,orient='index')
+
+        if output:
+            df.to_csv(os.path.join(self.basepath,output_folder,'non targeted man coverage epa analysis.csv'))
         else:
             return df
