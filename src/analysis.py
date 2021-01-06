@@ -189,12 +189,13 @@ class Analysis:
             rc = play.target
             rc_production = self.offensive_production.loc[rc.nflId]
             epa_delta = play.epa - rc_production['epa/target']
+            safety_help = db.safety_help
             
-            res = [db.nflId, db.name, rc.nflId, rc.name, play.epa, rc_production['epa/target'], epa_delta]
+            res = [db.nflId, db.name, rc.nflId, rc.name, play.epa, rc_production['epa/target'], epa_delta, safety_help]
             
             results.append(res)
 
-        columns = ['db nflId', 'db name','rc nflId', 'rc name', 'play epa', 'expected epa', 'epa delta']
+        columns = ['db nflId', 'db name','rc nflId', 'rc name', 'play epa', 'expected epa', 'epa delta', 'safety help']
         results = pd.DataFrame(results, columns=columns).sort_values('play epa')
 
         totals = []
@@ -207,10 +208,12 @@ class Analysis:
             
             db_epa_total = db_df['epa delta'].sum()
             db_epa_mean = db_df['epa delta'].mean()
+            
+            safety_help_percent = round((db_df['safety help'].astype(int).sum() / db_df.shape[0]) * 100, 1) 
                 
-            totals.append([_id,db_name, nPlays, db_epa_total, db_epa_mean])
+            totals.append([_id,db_name, nPlays, db_epa_total, db_epa_mean, safety_help_percent])
 
-        totals = pd.DataFrame(totals,columns=['id','name','man targeted coverage count','total man delta epa','mean man delta epa'])
+        totals = pd.DataFrame(totals,columns=['id','name','man targeted coverage count','total man delta epa','mean man delta epa', 'safety help percent'])
         totals = totals.sort_values('total man delta epa')
 
         if output:
